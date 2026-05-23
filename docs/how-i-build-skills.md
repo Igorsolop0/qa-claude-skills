@@ -122,29 +122,17 @@ Fixtures live in `evals/fixtures/`. Eval definitions live in `evals/evals.json`:
 }
 ```
 
-## Worked example: `pw-test-review`
+## On rejected candidates
 
-How it ran through this pipeline:
+The candidates that *fail* the gate are part of the system, not waste. Keep them as drafts somewhere visible — writing the rejections down is the discipline. Without that, the gate decays into "I want to ship something this week."
 
-| Stage | What happened |
-|-------|---------------|
-| Source | Khotemskyi's Playwright course Lesson 2 ("Writing Tests") — 39 min recording. |
-| Transcript | Generated `lesson-02-summary.md`: test() signature, page.goto's quirks, locator critique, toContainText footguns, hooks anti-patterns. |
-| Nuggets | 17 individual rules — networkidle abuse, missing await, beforeAll-with-shared-state, toContainText on numerics, unchecked goto status, force clicks, weak locators, hardcoded sleeps, etc. |
-| Candidate | "Playwright test reviewer" — clusters all 17 nuggets into a code-review skill. |
-| Gate | Repeat-test ✓ (every PR). Tribal ✓ (these are senior reflexes, not docs). Triggers ✓ ("review this test", "is it flaky", "code smell"). Output ✓ (Critical/High/Medium/Low report). Maintenance ✓ (mechanisms, not API versions). **Ships.** |
-| Evals | 4 fixtures: `login.spec.ts` (networkidle + missing await), `balance.spec.ts` (iGaming shared state), `signup.spec.ts` (force clicks + CSS locators), `checkout-clean.spec.ts` (no issues — guard against hallucination). |
-| Benchmark | With-skill 100% pass / no-skill baseline 93%, with-skill ~2× faster (it knows where to look). |
+Typical failure modes worth recognizing:
 
-## Skills I rejected
+- **Repeat-test fails** — a task you only hit a couple times a year doesn't need a skill, just a saved snippet.
+- **Tribal-knowledge fails** — if the official docs already cover it cleanly, skip the wrapping. Skills are for the senior reflexes that aren't in the docs.
+- **Maintenance fails** — anything tied to a specific alpha API or fast-moving config will go stale before it pays off.
 
-Equally important: candidates that *failed* the gate stay as drafts, not skills. Examples from the same course:
-
-- **`pw-landing-reality`** — "extract reality-vs-marketing from a tool's landing page". Failed Repeat-test (I do this maybe twice a year) and Maintenance-test (landing pages restructure). Kept as a generic `landing-reality-check` draft instead, since the *method* is reusable but the Playwright-specific wrapping wasn't.
-- **`pw-install-bootstrap`** — "bootstrap a new Playwright install with the right flags". Failed Tribal-knowledge (npx playwright init does this; doesn't need a skill).
-- **`pw-pm-speed-bench`** — "compare npm/pnpm/bun install speed". Failed Repeat-test (decided once, done).
-
-Writing down the rejections is the discipline. Without them, the gate decays into "I want to ship something this week".
+If a method is reusable but the framework-specific wrapping isn't, generalize the method into a tool-agnostic draft instead of shipping a narrow skill. The draft is cheap to promote later if the same pattern shows up in two more contexts.
 
 ## TL;DR
 
