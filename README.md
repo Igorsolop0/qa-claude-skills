@@ -27,9 +27,9 @@ More coming as I work through Oleksandr Khotemskyi's Playwright course and my ow
 ### As a Claude Code marketplace (recommended)
 
 ```bash
-/plugin marketplace add Igorsolop0/claude-skills
-/plugin install pw-test-review@ihor-claude-skills
-/plugin install pw-pom-generator@ihor-claude-skills
+/plugin marketplace add Igorsolop0/qa-claude-skills
+/plugin install pw-test-review@qa-claude-skills
+/plugin install pw-pom-generator@qa-claude-skills
 ```
 
 After that each skill triggers automatically — `pw-test-review` when you ask Claude to review a Playwright test file, `pw-pom-generator` when you ask Claude to scaffold a Page Object / spec from a list of locators and scenarios.
@@ -55,7 +55,7 @@ The same pipeline is what produced `pw-test-review` — built from Khotemskyi's 
 ## Project structure
 
 ```
-claude-skills/
+qa-claude-skills/
 ├── .claude-plugin/
 │   └── marketplace.json        ← makes this repo installable as a Claude Code marketplace
 ├── skills/
