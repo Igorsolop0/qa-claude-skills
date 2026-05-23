@@ -9,8 +9,6 @@ I'm Ihor Solopii — Senior QA Engineer / QA Manager based in **Vienna, Austria*
 - **Now** — Senior QA at **[Sdui](https://sdui.de/)** (German EdTech): Playwright E2E from scratch, Karate API automation, shift-left testing, test strategy.
 - **Previously** — Senior QA / QA Manager at **Career Karma** (led a team of 10, built the Playwright automation strategy), QA Lead at **Bank Pivdenny** and **FUIB** (mobile banking, iOS/Android + microservices/SOAP/REST), and earlier QA roles at Innovecs, Digicode, Brainstack.
 
-**Stack I actually use day-to-day:** Playwright (TypeScript), Karate (API), Detox (React Native), Postman, jMeter, GraphQL, TestRail / QASE, Jira / Notion / Confluence.
-
 I build skills from real problems I hit at work, and I keep them honest with a gate-checklist (see [`docs/how-i-build-skills.md`](docs/how-i-build-skills.md)). If a candidate doesn't pass the gate, it doesn't ship here.
 
 ## Skills
@@ -52,7 +50,7 @@ Short version: transcript / real workflow → extract "nuggets" → run each can
 
 Long version: [`docs/how-i-build-skills.md`](docs/how-i-build-skills.md).
 
-The same pipeline is what produced `pw-test-review` — built from Khotemskyi's Lesson 2 ("Writing Tests"), validated with 4 fixture-based evals (3 broken tests + 1 clean test), benchmarked against a no-skill baseline.
+The same pipeline is what produced `pw-test-review` — built from Khotemskyi's course material, validated with 4 fixture-based evals (3 broken tests + 1 clean test), benchmarked against a no-skill baseline.
 
 ## Project structure
 
@@ -76,20 +74,3 @@ This is a personal repo, but if you spot something wrong with a skill — open a
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
-## Credits
-
-`pw-test-review` is built on material from [Oleksandr Khotemskyi's Playwright course](https://www.youtube.com/@xotabu4) (Lesson 2 — "Writing Tests"). The anti-pattern catalog is curated against his lecture material plus production experience from EdTech, banking, and Web3. Course material is referenced, not redistributed.
-
-## Side work — iGaming and Solana blockchain
-
-Outside the day job I build and test **[Lorypten](https://github.com/ihor-solopii)** — a decentralized lottery dApp on Solana. iGaming-adjacent (lottery flows, position buying, payouts, RNG) but running fully on-chain via Anchor programs and a Next.js + Phantom-wallet frontend.
-
-That side project is where the harder Playwright automation patterns in this repo get battle-tested:
-
-- Phantom wallet popup automation via CDP-attached real Chrome (not Synpress)
-- Multi-transaction flows with background auto-confirm (one user action → ALT + protocol + airdrop txs)
-- KB-driven UI exploration (query a Lorypten knowledge base for expected behavior, diff against live UI, write a gap analysis, generate tests from it)
-- Wallet-mode-agnostic specs that run in three modes from the same source: Synpress, CDP-attached Chrome, Docker headless
-
-If a skill in this repo survives a Web3 flow with on-chain confirmation latency, browser-extension popups, and shared wallet state — it survives most things. That's the bar.
