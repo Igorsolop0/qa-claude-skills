@@ -1,0 +1,33 @@
+{
+  "skill_name": "pw-test-review",
+  "evals": [
+    {
+      "id": 0,
+      "eval_name": "flaky-login-with-networkidle",
+      "prompt": "ось тест на логін, на CI він то проходить то ні. ось файл — login.spec.ts. подивись що з ним не так. файл прикріплено.",
+      "files": ["fixtures/login.spec.ts"],
+      "assertions": []
+    },
+    {
+      "id": 1,
+      "eval_name": "balance-igaming-shared-state",
+      "prompt": "ревью пліз цей тест для wallet/balance в нашій iGaming-апці. суми реальні гроші. balance.spec.ts прикріплено.",
+      "files": ["fixtures/balance.spec.ts"],
+      "assertions": []
+    },
+    {
+      "id": 2,
+      "eval_name": "force-clicks-and-css-locators",
+      "prompt": "цей тест я писав вночі. чи нормально такі тести в проєкт пушити? signup.spec.ts прикріплено.",
+      "files": ["fixtures/signup.spec.ts"],
+      "assertions": []
+    },
+    {
+      "id": 3,
+      "eval_name": "clean-test-no-issues",
+      "prompt": "Подивись цей тест, я хочу зрозуміти чи він норм. checkout-clean.spec.ts прикріплено.",
+      "files": ["fixtures/checkout-clean.spec.ts"],
+      "assertions": []
+    }
+  ]
+}

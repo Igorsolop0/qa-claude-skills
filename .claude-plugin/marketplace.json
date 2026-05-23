@@ -1,0 +1,29 @@
+{
+  "name": "ihor-claude-skills",
+  "owner": {
+    "name": "Ihor Solopii",
+    "url": "https://github.com/Igorsolop0"
+  },
+  "metadata": {
+    "description": "Personal collection of Claude Code skills by Ihor Solopii — Senior QA Engineer. Built from real workflows and curated against a gate-checklist (see docs/how-i-build-skills.md).",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "pw-test-review",
+      "source": "./skills/pw-test-review",
+      "description": "Behavioral review of Playwright tests — finds anti-patterns that cause flakes, false positives, and silent bugs (networkidle abuse, missing await, beforeAll with shared state, toContainText on numeric values, unchecked goto status, force clicks, weak locators, hardcoded sleeps). Context-aware priority bumps for iGaming/fintech/money domains.",
+      "version": "0.1.0",
+      "category": "qa",
+      "tags": ["playwright", "testing", "code-review", "qa", "e2e", "typescript"]
+    },
+    {
+      "name": "pw-pom-generator",
+      "source": "./skills/pw-pom-generator",
+      "description": "Scaffold a per-flow Playwright suite (Page Object + typed presets + spec) from your locator/scenario notes. Framework- and auth-agnostic — wallet/login/API setup steps are emitted as clearly marked SETUP_REQUIRED placeholders the user fills in. Enforces locator priority, web-first assertions, no raw selectors in specs, and Node 24 strip-only TS compatibility.",
+      "version": "0.1.0",
+      "category": "qa",
+      "tags": ["playwright", "testing", "scaffolding", "page-object", "pom", "qa", "e2e", "typescript"]
+    }
+  ]
+}
