@@ -1,6 +1,6 @@
 # Ihor's Claude Skills
 
-Personal collection of [Claude Code](https://docs.claude.com/en/docs/agents-and-tools/claude-code) skills I actually use day-to-day.
+Personal collection of Claude Code skills I actually use day-to-day.
 
 ## About me
 
