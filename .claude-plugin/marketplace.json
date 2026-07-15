@@ -12,8 +12,8 @@
     {
       "name": "pw-test-review",
       "source": "./skills/pw-test-review",
-      "description": "Behavioral review of Playwright tests — finds anti-patterns that cause flakes, false positives, and silent bugs (networkidle abuse, missing await, beforeAll with shared state, toContainText on numeric values, unchecked goto status, force clicks, weak locators, hardcoded sleeps). Context-aware priority bumps for iGaming/fintech/money domains.",
-      "version": "0.1.0",
+      "description": "Behavioral review of Playwright tests — finds anti-patterns that cause flakes, false positives, and silent bugs (networkidle abuse, missing await, beforeAll with shared state, toContainText on numeric values, unchecked goto status, force clicks, weak locators, hardcoded sleeps, list-iteration false positives, positional/strict-mode locator ambiguity, XPath-into-shadow-DOM). Context-aware priority bumps for iGaming/fintech/money domains.",
+      "version": "0.2.0",
       "category": "qa",
       "tags": ["playwright", "testing", "code-review", "qa", "e2e", "typescript"]
     },
@@ -24,6 +24,14 @@
       "version": "0.1.0",
       "category": "qa",
       "tags": ["playwright", "testing", "scaffolding", "page-object", "pom", "qa", "e2e", "typescript"]
+    },
+    {
+      "name": "playwright-sdet-expert",
+      "source": "./skills/playwright-sdet-expert",
+      "description": "Senior SDET assistant for Playwright/TypeScript projects — writes specs, Page Objects, presets, and cross-flow components matching a per-flow POM layout. Enforces accessible-locator priority, exact-match assertions, no-waitForTimeout discipline, fixture-based composition (no BasePage hierarchies), and the requirements-first/gap-analysis workflow. Covers async/eventual-consistency waits and a refactor-on-sight anti-pattern catalog.",
+      "version": "0.1.0",
+      "category": "qa",
+      "tags": ["playwright", "testing", "page-object", "pom", "sdet", "qa", "e2e", "typescript"]
     }
   ]
 }

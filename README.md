@@ -19,6 +19,7 @@ I build skills from real problems I hit at work, and I keep them honest with a g
 |-------|--------------|
 | [`pw-test-review`](skills/pw-test-review) | Behavioral review of Playwright tests — finds anti-patterns that cause flakes, false positives, and silent bugs. Context-aware priority bumps for iGaming/fintech. |
 | [`pw-pom-generator`](skills/pw-pom-generator) | Scaffold a per-flow Playwright suite (Page Object + typed presets + spec) from locator/scenario notes. Framework- and auth-agnostic — wallet/login steps emitted as `SETUP_REQUIRED` placeholders, never as fake code. |
+| [`playwright-sdet-expert`](skills/playwright-sdet-expert) | Full SDET-assistant persona for an existing Playwright/TypeScript repo — always-on conventions (per-flow POM layout, locator priority, no `waitForTimeout`, no god-object test data) plus on-demand references for async/eventual-consistency waits, new-flow workflow, and an anti-pattern catalog. |
 
 More coming as I work through Oleksandr Khotemskyi's Playwright course and my own day job. The methodology is documented so the pipeline doesn't depend on me remembering it.
 
@@ -30,9 +31,10 @@ More coming as I work through Oleksandr Khotemskyi's Playwright course and my ow
 /plugin marketplace add Igorsolop0/qa-claude-skills
 /plugin install pw-test-review@qa-claude-skills
 /plugin install pw-pom-generator@qa-claude-skills
+/plugin install playwright-sdet-expert@qa-claude-skills
 ```
 
-After that each skill triggers automatically — `pw-test-review` when you ask Claude to review a Playwright test file, `pw-pom-generator` when you ask Claude to scaffold a Page Object / spec from a list of locators and scenarios.
+After that each skill triggers automatically — `pw-test-review` when you ask Claude to review a Playwright test file, `pw-pom-generator` when you ask Claude to scaffold a Page Object / spec from a list of locators and scenarios, `playwright-sdet-expert` when you ask Claude to write a spec/POM/preset in a repo that already follows this layout or ask "why is this test flaky".
 
 ### As a manual `.skill` zip
 
