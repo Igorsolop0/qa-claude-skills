@@ -39,6 +39,16 @@ This SKILL.md is the **entry point**. Detailed rules live in `references/` and a
 **Do NOT add unless the user asks:** `envalid`, `zod`, `openapi-typescript`, ESLint/Prettier
 configs, Allure/JUnit/ReportPortal reporters, Page-Object base classes.
 
+**Multi-brand / multi-surface repos:** if the repo hosts several storefronts or brands, keep shared
+code and skills brand-agnostic; scope specs and fixtures to the brand under test and never assume
+every brand exposes the same routes or capabilities.
+
+**Session-split projects.** When the config splits guest and authenticated runs into separate
+Playwright projects (e.g. `*.player.spec.ts` files routed to an authenticated project with a
+storage-state session), respect the routing: authenticated-only assertions belong in a file the
+config routes to the authenticated project. Every authenticated run may create a real backend
+account — keep such specs few and reuse the setup session.
+
 ## 1. Folder map (do not invent new top-level folders)
 
 ```

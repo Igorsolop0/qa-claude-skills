@@ -14,9 +14,13 @@ selector. Do NOT skip to CSS just because it's faster to type.
 2. `page.getByLabel(...)`
 3. `page.getByPlaceholder(...)`
 4. `page.getByText(..., { exact: true })`
-5. `page.getByTestId(...)` — only if `data-testid` exists on the element
-6. CSS selector — last resort, anchor on a stable attribute (`[name=...]`, `[data-*]`), never
-   on layout classes, **never** `nth(i)` or positional
+5. `page.getByTestId(...)` — only if `data-testid` exists on the element (many design systems
+   ship `data-testid` on interactive surfaces)
+6. Stable `data-*` attribute — many UI kits mark component slots with `data-slot`
+   (`[data-slot="site-header"]`) and state with attributes like `data-state`. Prefer these over
+   any class or structure selector.
+7. Stable id/name attribute (`#register-email`, `[name=...]`) — last resort; never layout classes,
+   Tailwind utilities, **never** `nth(i)` or positional
 
 If the live UI has an accessibility gap (e.g. clickable `<div>` without `role="button"`), prefer
 `getByText('...', { exact: true })` and flag the gap in the exploration report so a frontend
@@ -112,8 +116,8 @@ single preset is a full snapshot a test can stamp onto the UI in one pass. Keep 
 requirements-vs-UI contradictions inline as JSDoc above the preset.
 
 Shared atoms (durations, enums, ceilings reused across flows) live in
-`src/constants/<domain>.ts` — one file per domain (`user.ts`, `billing.ts`, `courses.ts`),
-again not one mega-file.
+a domain-scoped constants file next to the flows that use them
+(`tests/<flow-area>/constants/<domain>.ts`), again not one mega-file.
 
 **Faker** (`@faker-js/faker`) is fine for fields where uniqueness across runs matters —
 typically titles/names/identifiers that would otherwise collide in a shared test environment.

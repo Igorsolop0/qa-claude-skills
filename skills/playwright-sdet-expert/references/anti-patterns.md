@@ -24,7 +24,13 @@ reference tells you where the positive convention lives.
 - ❌ Selectors based on user-specific display strings (a full name, an email prefix) unless
   that user is deterministically seeded — those change per environment.
 - ❌ Adding envalid / zod / page-object base classes without the user explicitly asking.
-  (Faker is fine — use it per the presets section of `references/playwright-conventions.md`.)
+  (`zod` belongs to the API layer, not UI specs.)
+- ❌ Generated identifiers written to a live environment without a `qa-pw-`-style prefix —
+  leftovers can't be found or filtered later.
+- ❌ Enabling a mock stack (`?mocks=on`, mock-routing headers, `*_USE_MOCKS` env) in suites that
+  are live-only by design.
+- ❌ Test titles without the case id, or with an invented test-management `@T`/`@S` id.
+- ❌ A multi-step case without `test.step` — the reporter then can't show which step failed.
 - ❌ Using faker without the `<ticket-id>-e2e-pw-` prefix tag on identifiers written to a
   shared test environment.
 - ❌ Writing the test before reading the requirements — the workflow is
@@ -39,6 +45,10 @@ reference tells you where the positive convention lives.
   `HeaderComponent.component.ts`). Kebab-case + single suffix only.
 - ❌ Adding Allure / JUnit / any third-party reporter. Playwright's built-in HTML reporter is
   the default; new reporters require an explicit ask.
+- ❌ Registering a new real account inside a spec when a shared setup session is enough — every
+  registration creates a real backend account.
+- ❌ Authenticated-only assertions in a file the config routes to the guest project — it runs
+  without the session and fails or, worse, passes against guest chrome.
 - ❌ Asserting outcome state immediately after a form submit whose backend is async (job
   queue, eventual consistency, cache warm-up) — passes on fast environments, flakes on slow
   ones. Use `expect.poll` / `toPass` (see `references/async-waits.md`).

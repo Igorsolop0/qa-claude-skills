@@ -45,11 +45,12 @@ note it in the exploration report as a coverage gap rather than silently guessin
    (`tests/fixtures/*` or `@playwright/test` directly). Use `test.step` for Arrange/Act/Assert
    grouping when it aids readability; skip the ceremony for a short test.
 9. **Self-check:**
-   - No `waitForTimeout`.
+   - No `waitForTimeout`, no `networkidle`.
    - No `browser/context/page.close()` in a shared-context setup.
    - `BASE_URL` read from env with a sane default.
    - Locators follow the priority ladder; any `nth()` is wrapped + explained.
    - Assertions on values with schema-like shape (money, dates, IDs) use `{ exact: true }`.
+   - Wrap the numbered steps of a traced test case in `test.step` so the reporter shows which step failed.
    - `npx tsc --noEmit` is clean.
    - `npx playwright test <flow>` passes locally.
 
