@@ -22,7 +22,7 @@ Walk through the test code and flag the following. Categorize each finding by pr
 ### 2. Missing `await` on a Playwright async call
 
 - **Why:** floating promise — the test continues past the line, and ordering becomes nondeterministic. Classic root cause of "passes locally, flaky on CI".
-- **Fix:** add `await`. Recommend wiring up ESLint with `@typescript-eslint/no-floating-promises` so it gets caught automatically.
+- **Fix:** add `await`. If the project lints with Biome, suggest enabling its `noFloatingPromises` rule (or `@typescript-eslint/no-floating-promises` under ESLint) so this is caught automatically, but do not treat a missing lint rule as a finding.
 
 ### 3. `page.waitForTimeout(N)` with a hardcoded number
 
@@ -124,7 +124,7 @@ Walk through the test code and flag the following. Categorize each finding by pr
 ### 14. Hardcoded test data that collides on rerun
 
 - **Why:** fixed email like `newuser@test.com` works the first time, fails the second (already exists). Looks flaky, but it's deterministic and a data-cleanup problem.
-- **Fix:** generate a unique value per run — `\`user-\${Date.now()}@test.com\`` — or use a fixture that creates and cleans up the user.
+- **Fix:** generate a unique, prefixed value per run — \`qa-pw-${crypto.randomUUID()}\` — so leftovers are filterable, or use a fixture that creates the user.
 
 ### 15. Test creates a server/chain-side artifact but never surfaces its identifier in the report
 
@@ -167,7 +167,7 @@ Walk through the test code and flag the following. Categorize each finding by pr
 ### 19. Global test-data file (`testData.ts` / `fixtures.ts` / `data.ts`)
 
 - **Why:** when one file aggregates presets/users/payloads from multiple unrelated flows, every spec imports the union, every change touches the same file, and the test data becomes a god object. Renaming a single preset cascades into specs that should have nothing to do with it.
-- **Fix:** colocate test data with the flow that owns it (`tests/<flow>/<flow>.presets.ts`). Lift only true cross-flow atoms (durations, enums, hard ceilings) into domain-scoped `src/constants/<domain>.ts` — still not one mega-file.
+- **Fix:** colocate test data with the flow that owns it (`tests/<flow>/<flow>.presets.ts`). Lift only true cross-flow atoms (durations, enums, hard ceilings) into domain-scoped a domain-scoped constants file next to the flows that use them — still not one mega-file.
 
 ### 20. Separate `locators/` folder or `*.locators.ts` file
 

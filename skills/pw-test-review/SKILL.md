@@ -28,6 +28,25 @@ If the user shares a whole directory, scan all `.spec.ts` / `.test.ts` files; ot
 4. **Write the report.** Use the structure in `references/output-template.md`. Skip empty sections. Cite line numbers. One sentence per "why" — explain mechanism, not policy.
 5. **Don't fabricate.** If a category has no findings, omit it. Better three sharp findings than ten wobbly ones. Always include a "What's good" section — tells the author what to keep.
 
+## Money-domain context
+
+When the code under review covers money, balances, payments, or any real-value domain, also check
+these rules (cite them as findings only when they cause a real failure mode):
+
+- **Always apply the money-domain priority bumps** from `references/anti-patterns.md`: balances,
+  bonuses, and deposits are in scope even if the user doesn't say so.
+- **Mock-stack leaks.** `?mocks=on`, `x-wiremock`, or `PLAYWRIGHT_USE_MOCKS` in a suite that reports
+  to a test-management tool as "live" → High: the run silently tests mock data while reporting live.
+- **Session/project routing.** Authenticated-only assertions in a file that the config routes to a
+  guest/unauthenticated project → High: it runs without the session and fails or, worse, passes
+  against guest chrome.
+- **Traceability.** A multi-step case without `test.step`, or a missing/invented test-management
+  `@T` id → Medium: the reporter can't show the failing step or match the case.
+- **Live accounts.** Registering a new real account in a spec when a shared setup session would do
+  → Medium: each run creates real backend accounts.
+- **Perpetual-network apps.** Apps with long-lived connections (analytics, websockets) never reach
+  `networkidle`; prefer `waitUntil: "domcontentloaded"` plus a wait on the element under test.
+
 ## Philosophy
 
 The user is a senior QA engineer. They value root-cause reasoning over rules. For every finding, the "why" should explain the **mechanism** by which the pattern causes a problem — not "the docs say so", not "best practice". If you can't justify a finding by mechanism, drop it.
