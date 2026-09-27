@@ -1,0 +1,749 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://<repo>.dev/the platform/qa/shift-left-review.schema.json",
+  "title": "QA shift-left review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ref",
+    "source_mode",
+    "analyzed_at",
+    "brand_scope",
+    "feature_framing",
+    "testing_types",
+    "techniques",
+    "normalized_acs",
+    "ambiguities",
+    "assumptions",
+    "open_questions",
+    "risks",
+    "scenario_matrix",
+    "coverage_ladder",
+    "test_budget",
+    "coverage_summary",
+    "verdict",
+    "verdict_rationale"
+  ],
+  "properties": {
+    "ref": {
+      "type": "string",
+      "description": "Issue reference (#2201), OpenSpec change name, or a short label for pasted input."
+    },
+    "source_mode": {
+      "type": "string",
+      "enum": [
+        "github_issue",
+        "openspec_change",
+        "pasted_text"
+      ]
+    },
+    "input_type": {
+      "type": "string",
+      "enum": [
+        "Feature",
+        "Task",
+        "Bug",
+        "Research",
+        "Epic",
+        "spec",
+        "unknown"
+      ]
+    },
+    "analyzed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "brand_scope": {
+      "type": "string",
+      "enum": [
+        "client",
+        "brand-b",
+        "cross-brand"
+      ]
+    },
+    "parent_ref": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "relevant_acs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "feature_framing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "what_changes",
+        "expected_behavior",
+        "affected_profiles",
+        "dependencies"
+      ],
+      "properties": {
+        "what_changes": {
+          "type": "string"
+        },
+        "user_goal": {
+          "type": "string"
+        },
+        "expected_behavior": {
+          "type": "string"
+        },
+        "affected_profiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Access profile ids from gateway/mock/profiles/<brand>/profiles.yaml."
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "feature_flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "testing_types": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected",
+        "excluded"
+      ],
+      "properties": {
+        "selected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "visibility": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "black-box",
+              "white-box",
+              "grey-box"
+            ]
+          }
+        },
+        "excluded": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "reason"
+            ],
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "techniques": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "technique",
+          "slice"
+        ],
+        "properties": {
+          "technique": {
+            "type": "string",
+            "enum": [
+              "equivalence-partitioning",
+              "boundary-value-analysis",
+              "decision-table",
+              "state-transition",
+              "pairwise",
+              "use-case",
+              "error-guessing",
+              "exploratory",
+              "structure-based"
+            ]
+          },
+          "slice": {
+            "type": "string",
+            "description": "What this technique actually cuts in this change. No decoration."
+          }
+        }
+      }
+    },
+    "normalized_acs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "text",
+          "source",
+          "quality_score",
+          "refinement_needed"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "quality_score": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "testable",
+              "measurable",
+              "atomic",
+              "complete",
+              "independent"
+            ],
+            "properties": {
+              "testable": {
+                "type": "boolean"
+              },
+              "measurable": {
+                "type": "boolean"
+              },
+              "atomic": {
+                "type": "boolean"
+              },
+              "complete": {
+                "type": "boolean"
+              },
+              "independent": {
+                "type": "boolean"
+              }
+            }
+          },
+          "refinement_needed": {
+            "type": "boolean"
+          },
+          "failed_dimensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "refinement_note": {
+            "type": "string"
+          },
+          "proposed_rewrite": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "given": {
+                "type": "string"
+              },
+              "when": {
+                "type": "string"
+              },
+              "then": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "ambiguities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "description",
+          "blocks_implementation"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "blocks_implementation": {
+            "type": "boolean"
+          },
+          "resolution_proposal": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "decision_signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source",
+          "signal_type",
+          "text",
+          "carried_into"
+        ],
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "signal_type": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "carried_into": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "impact_analysis": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "affected_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 15
+        },
+        "related_test_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "regression_risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file",
+              "risk",
+              "existing_coverage"
+            ],
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "risk": {
+                "type": "string"
+              },
+              "existing_coverage": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "uncovered_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "description",
+          "category",
+          "likelihood",
+          "impact"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "money",
+              "bonus-correctness",
+              "auth",
+              "compliance",
+              "data-loss",
+              "ux",
+              "regression",
+              "integration",
+              "other"
+            ]
+          },
+          "likelihood": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "impact": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          }
+        }
+      }
+    },
+    "scenario_matrix": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "covers_ac",
+          "scenario",
+          "type",
+          "level",
+          "technique",
+          "priority",
+          "profiles",
+          "rationale_for_level",
+          "destination",
+          "expected_evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "covers_ac": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scenario": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "negative",
+              "boundary",
+              "edge",
+              "exploratory",
+              "regression"
+            ]
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "unit",
+              "component",
+              "api",
+              "openspec-mock",
+              "e2e-live"
+            ]
+          },
+          "technique": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "must",
+              "should",
+              "could"
+            ]
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rationale_for_level": {
+            "type": "string"
+          },
+          "destination": {
+            "type": "string",
+            "description": "Concrete path: workspace test file, qa/tests/** spec, or OpenSpec test-case file."
+          },
+          "expected_evidence": {
+            "type": "string"
+          },
+          "deferred": {
+            "type": "boolean",
+            "description": "True when the scenario can only run against mocks today and must be re-run with real data later."
+          }
+        }
+      }
+    },
+    "coverage_ladder": {
+      "type": "array",
+      "description": "Per acceptance criterion: what each level already proves and what is still missing.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ac_id",
+          "ladder"
+        ],
+        "properties": {
+          "ac_id": {
+            "type": "string"
+          },
+          "ladder": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "level",
+                "status",
+                "owner"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "unit",
+                    "component",
+                    "api",
+                    "openspec-mock",
+                    "e2e-live"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "covered",
+                    "claimed",
+                    "partial",
+                    "missing",
+                    "not-applicable"
+                  ]
+                },
+                "owner": {
+                  "type": "string",
+                  "enum": [
+                    "dev",
+                    "qa"
+                  ]
+                },
+                "evidence": {
+                  "type": "string",
+                  "description": "path:line of the test whose assertion was read"
+                },
+                "action": {
+                  "type": "string",
+                  "description": "What to add, for missing or partial entries"
+                },
+                "note": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "test_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "qa_owned",
+        "delegated",
+        "e2e_live_limit",
+        "within_limits"
+      ],
+      "properties": {
+        "qa_owned": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "api": {
+              "type": "integer"
+            },
+            "e2e_live": {
+              "type": "integer"
+            }
+          }
+        },
+        "delegated": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "unit": {
+              "type": "integer"
+            },
+            "component": {
+              "type": "integer"
+            },
+            "openspec_mock": {
+              "type": "integer"
+            }
+          }
+        },
+        "e2e_live_limit": {
+          "type": "integer",
+          "default": 2
+        },
+        "within_limits": {
+          "type": "boolean"
+        },
+        "challenges_run": {
+          "type": "integer"
+        },
+        "demoted": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "scenario_id",
+              "from",
+              "to",
+              "reason"
+            ],
+            "properties": {
+              "scenario_id": {
+                "type": "string"
+              },
+              "from": {
+                "type": "string"
+              },
+              "to": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "justified_e2e": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "scenario_id",
+              "reason"
+            ],
+            "properties": {
+              "scenario_id": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ac_total",
+        "ac_covered",
+        "all_acs_have_must_test"
+      ],
+      "properties": {
+        "ac_total": {
+          "type": "integer"
+        },
+        "ac_covered": {
+          "type": "integer"
+        },
+        "ac_uncovered": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "all_acs_have_must_test": {
+          "type": "boolean"
+        }
+      }
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "ready_to_implement",
+        "needs_refinement",
+        "partial",
+        "blocked"
+      ]
+    },
+    "verdict_rationale": {
+      "type": "string"
+    }
+  }
+}
