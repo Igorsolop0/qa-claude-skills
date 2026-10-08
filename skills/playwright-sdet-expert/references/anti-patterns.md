@@ -61,8 +61,10 @@ reference tells you where the positive convention lives.
 - ❌ Looping `locator.all()` or branching on `count()` without a preceding `toHaveCount`
   assertion — vacuously green on an empty list (see flaky-locator diagnostics in
   `references/playwright-conventions.md`).
-- ❌ `BasePage` / `PageHolder` / abstract test class hierarchies. Playwright fixtures are the
-  composition primitive — use `test.extend`.
+- ❌ A `BasePage` that wraps Playwright (`click`, `fill`, `waitFor` helpers) or an abstract test
+  class that specs extend. Playwright fixtures are the composition primitive — use `test.extend`.
+  Thin bases of a registry layout (`PageHolder` holds `page`, `Component` adds `expectLoaded`,
+  `AppPage` adds `open`) are not this anti-pattern; mixing the two layouts in one project is.
 - ❌ Nested `test.describe` blocks that only wrap a single test, or `describe` used for
   narrative grouping — flat suites read better and don't nest hooks.
 - ❌ `beforeAll` that establishes shared, mutable state (a logged-in user, a seeded record)

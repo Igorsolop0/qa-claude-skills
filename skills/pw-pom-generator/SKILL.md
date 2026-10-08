@@ -17,11 +17,26 @@ Trigger when the user asks to:
 - "Write a Playwright spec from these exploration notes"
 - Any time they hand you a list of locators / scenarios and want runnable scaffold code
 
+Use `e2e-writer` instead when the app can be opened from this machine: it looks at the real page,
+prepares data through the API, runs the tests and proves they can fail. This skill is for the
+case where only notes exist (no access to the environment yet, a page still in design).
+
 Do **not** trigger for:
 
 - Reviewing existing tests (use `pw-test-review` instead)
 - Running tests / debugging failures
 - Setting up a new Playwright project from scratch (no `playwright.config.ts` here — assume one exists)
+
+## Before anything: read the project
+
+- `CLAUDE.md` in the test folder, if there is one: project profile and test conventions. It wins
+  over every default in this skill.
+- Existing page objects, wherever they live: read the base classes (if any), two pages, one
+  component, the fixture that hands them to a test, one spec. **A structure that exists wins.**
+  The project may use per-flow folders (the default below) or a registry
+  (`PageHolder` → `Component` → `AppPage`, one `Application` object handed to tests by a
+  fixture). Generate in the shape you found, including its naming and where locators live.
+- Only a project with no page objects gets the default layout below.
 
 ## Inputs to collect
 
@@ -124,7 +139,11 @@ SETUP_REQUIRED markers: N (lines: ...)
 Suggested npm script: "test:<slug>": "playwright test tests/<slug>"
 ```
 
-Stop after this. Do not execute the tests — the user runs them.
+Stop after this. Do not execute the tests — the user runs them. Say plainly that the locators
+come from notes and were not checked against the page, and offer `e2e-writer` for that.
+
+If the project has a `CLAUDE.md`, propose the lines to add under "Test conventions" (where the
+page objects live, the locator convention used), and add them after a yes.
 
 ## Hard rules
 

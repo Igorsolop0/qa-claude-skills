@@ -1,259 +1,160 @@
 ---
 name: api-contract-writer
 description: |
-  Senior SDET assistant for Playwright API contract tests in a TypeScript monorepo `qa/` package.
-  Writes API clients, request/response types, Builders, Zod schemas, fixtures and specs for two
-  targets: the client-facing backend through an API gateway (one legacy envelope service plus
-  newer bare-JSON services) and an admin/backoffice surface through a management API gateway.
-  Enforces status-before-body assertions, envelope-aware unwrapping, exact error-code matches,
-  builder-based test data, and secrets-only-in-env discipline.
-  Trigger: "write API test", "add API test for", "create test for endpoint", "add client for",
-  "new API spec for", "write contract test", "add test for <endpoint>", "test <HTTP method> <path>",
-  "cover <admin-domain> endpoint", "add Backoffice API test", "add client API test".
-
-argument-hint: endpoint-or-domain
+  Writes a small, honest set of API contract tests for one endpoint in a Playwright project that
+  was set up by `pw-project-bootstrap`. Works on any product: the rules here are general, and
+  everything particular to the product is read from, and written back to, the project's
+  `CLAUDE.md`. Reads the operation from the API description, probes the real endpoint, proposes
+  three to six tests with a reason for each, writes them, runs them, proves they can fail, and
+  records what it learned about the product.
+  Trigger: "write API tests for POST /tickets", "contract test for this endpoint", "cover the
+  users endpoints", "add API tests".
+  Not for: setting up the project (use `pw-project-bootstrap`), browser tests.
+argument-hint: METHOD /path  (for example: GET /tickets/{id})
 allowed-tools:
   - Read
   - Write
   - Edit
   - Glob
   - Grep
-  - Bash(bun run --cwd qa *)
-  - Bash(bunx turbo run * --filter=qa*)
+  - AskUserQuestion
+  - Bash(npx playwright test*)
+  - Bash(npm run *)
+  - Bash(npx tsc*)
+  - Bash(node -e *)
 ---
 
-# API Contract Writer — the `qa/` package
+# API Contract Writer
 
-You are a Senior SDET working in `qa/` of the `<org>/<repo>` Bun Turborepo. The API suites
-live next to the storefront suites and mirror the Testomat project `<repo>`:
+You write contract tests for one endpoint at a time. The user is a QA engineer who knows what
+should be tested and may not write code. Your tests must be few, readable, and able to fail.
 
-```
-tests/Client/API/<domain>/<name>.spec.ts          → Testomat: Client / API
-tests/Backoffice/API/Bonus-Admin/<name>.spec.ts   → Testomat: Backoffice / API / Bonus-Admin
-```
+This skill knows nothing about the product. What is particular about it lives in `CLAUDE.md` in
+the test folder (sections "Project profile" and "Test conventions"). Read it before anything else,
+follow it when it conflicts with a default here, and add to it at the end. Never edit this skill
+to fit a project.
 
-This file is the **entry point**. Detailed rules live in `references/`:
+Rules for what makes a test honest: [references/honest-tests.md](references/honest-tests.md).
+Layers for a suite that has outgrown the flat default (domain clients, builders, envelopes,
+attachments), and when each is worth adding: [references/optional-layers.md](references/optional-layers.md).
 
-| Task | Read this file |
-|---|---|
-| Writing a client, types, spec, or fixture | `references/conventions.md` |
-| Writing a Builder (payload > 3 fields) or a Zod schema | `references/builders.md` |
-| Choosing auth (gate auth, player JWT, Backoffice) | `references/auth-patterns.md` |
-| First API test in a target, or a brand new domain | `references/new-domain.md` |
+## Step 1 — Read the project
 
----
+- `CLAUDE.md`: profile, conventions, roles, endpoints that must not be called.
+- `src/fixtures/index.ts`: the names you may use (`test`, `expect`, `Schemas`, `Body`, `unique`,
+  `clientFor`, `api`, `<role>Api`).
+- Two existing specs in `tests/api/`, if any: copy their style, naming and data handling.
 
-## 0. Stack & ground truth
+No `CLAUDE.md` or no fixtures: stop and say the project needs `pw-project-bootstrap` first.
 
-- Runtime and package manager: **Bun**. Use `bun`, `bunx`, `bun run --cwd qa <script>`.
-  Never `npm`, `npx`, `pnpm`, or `yarn`.
-- Runner: `@playwright/test` from the root `testing` catalog (1.63.0). Playwright itself runs on
-  Node under `bunx`/`bun run`; do not use `bun --bun playwright`.
-- HTTP: Playwright `APIRequestContext` through the qa base client. Never `fetch`/`axios` in specs.
-- Validation: `zod` (root catalog, `"zod": "catalog:"`). Validate every happy-path body.
-- Test data: `crypto.randomUUID()` with a `qa-pw-` prefix. `@faker-js/faker` is not installed;
-  add it only when the user asks.
-- Lint/format: Biome (`bun run --cwd qa lint`). Typecheck: `bun run --cwd qa typecheck`.
-- Every run hits a live environment. `playwright test` refuses to start without `QA_LIVE=1`;
-  the `e2e*` package scripts set it.
+## Step 2 — Read the operation
 
-**Targets**
+From `src/types/api.d.ts`, `src/types/api-schemas.json` and, for limits on request fields, the
+description itself at `OPENAPI_SOURCE` (not from memory, not from a similar endpoint), collect:
 
-| Target | Project | Base URL env | Environments |
+- parameters and request body: required fields, limits, enums;
+- every documented response: status and schema name;
+- security: is a token needed, do roles differ;
+- what the description says in words: business rules hide in `description`.
+
+No description for this endpoint: say so and go to step 3 with the probe as the only source.
+
+## Step 3 — Probe the real endpoint
+
+Send one valid request with the role that should succeed (`node -e` with `fetch`, token from
+`.auth/<role>.json`; never print the token). You may also send one request per refusal you plan
+to test, to see its status and error body. For an operation that writes, create only data you
+will delete, and only if the profile allows writing in this environment.
+
+Compare the real answer with the description. A difference is a **finding**, not a detail to work
+around: status differs, a required field is missing, a type differs, an undocumented field
+appears. Report findings in step 4. Do not shape the test to match a wrong answer.
+
+An error code or message that you saw but the description does not state is **observed, not
+documented**. List such values in step 4 under their own heading and ask the user to confirm that
+they are intended; they become part of the contract only then, and go into `CLAUDE.md`.
+
+## Step 4 — Propose the tests and wait
+
+Budget: **three to six tests per endpoint.** Choose in this order and stop when the budget is full:
+
+1. The successful call: status, schema, and the values that prove this request was handled (the id
+   asked for, the fields sent).
+2. For an operation that writes: read the data back with a second request, as its own test. A 200
+   does not prove it was stored, and a separate test shows exactly what broke.
+3. The business rules the endpoint carries, from the description or the profile (who may do it,
+   which moves are allowed). These are the reason the endpoint exists.
+4. Generic refusals, each asserting the exact status and error code, most likely to break first:
+   no token (401), unknown id (404), invalid input (400/422). Drop from the end of this list when
+   the budget is full, and say which you dropped.
+
+Do not add: one test per invalid field, the same refusal for every role, tests of the framework,
+tests of another endpoint's behaviour. Three precise tests beat fifteen similar ones: every extra
+test is one more to maintain when the API changes.
+
+Show the user a table and stop:
+
+| # | Test | Why it earns its place | Tag |
 |---|---|---|---|
-| Client backend | `client-api` | `CLIENT_API_GATEWAY_URL` (qa: `<client-api-gateway-url>`) | **qa only**; prod (the production gateway) not agreed |
-| Backoffice | `backoffice-api` | `MANAGEMENT_API_GATEWAY_URL` (`<management-api-gateway-url>`) | **dev and qa only** |
 
-**Contracts (source of truth for types)**
+Under it: what you deliberately left out and why, findings from the probe, and anything you
+could not determine. Change the list as the user asks. Write only after a clear yes.
 
-- Client: `openapi-v1.json` at the repo root (Client API Gateway spec, committed). Services and
-  URL grammar: `packages/bff/README.md` § URL grammar, `packages/bff/src/generated/service-prefixes.ts`.
-- Backoffice: `{MANAGEMENT_API_GATEWAY_URL}/openapi/v1.json` (Scalar UI at `/scalar`). Admin Web
-  API tags: `Admin Web API / Bonus`, `BonusPackage`, `BonusSettings`, `TemplateBonus`,
-  `CalendarBonusSetting`. qa also exposes `bonusfeed/.../client-bonus-admin/...` routes.
+## Step 5 — Write
 
-Error message language defaults to **English**. Localized (es) copy is out of scope until the team
-decides otherwise.
+- File: `tests/api/<domain>/<verb>-<resource>.spec.ts`; the domain is the first path segment unless
+  the profile says otherwise. A new folder becomes a new Playwright project by itself.
+- Test titles start with the expected status: `'404: unknown id'`.
+- Tags: the successful call gets `@smoke`; everything gets `@regression`.
+- Order inside a test: status, then schema, then values.
+- An assertion after a second request carries a message that names it, so a red run explains
+  itself: `expect(body.priority, 'GET after PATCH: priority was not stored').toBe(data.priority)`.
+- Type every body: `const body: Schemas['Ticket'] = await response.json()`; request bodies with
+  `Body<'/tickets', 'post'>`.
+- Data: each spec creates what it needs and deletes it, using `clientFor(request, role)` in
+  `beforeAll` / `afterAll`. Names through `unique()`. Never depend on data from another spec or on
+  seed data that anyone can edit. Never call an endpoint the profile lists as not to be called.
+- The same helper needed in a second spec moves to `src/data/<resource>.ts`. Not before. Then rerun
+  the spec you moved it out of and update the convention line in `CLAUDE.md`.
+- A value that must fit a pattern (`unique()` does not fit `^[A-Z]{2,6}$`) gets a small generator in
+  `src/data/`; record it in `CLAUDE.md`.
+- No new dependency, no change to generated files, the config or the fixtures. If the fixtures
+  lack something, say so and ask.
 
-## 1. Folder map — do not invent new top-level folders
+## Step 6 — Run and classify every red test
 
-Created on first use (see `references/new-domain.md`). Match these paths exactly.
+Run the type check and the new spec. For each failure decide which it is and say it in these words:
 
-```
-qa/
-  .schema/                                  ← generated OpenAPI types (gitignored)
-  src/
-    api/
-      core/
-        base.client.ts                      ← APIRequestContext wrapper; failOnStatusCode: false
-        envelopes.ts                        ← asDomainApiResponse(), asProblemDetails()
-        schema.matcher.ts                   ← expect.extend({ toMatchSchema })
-      client/
-        <service>/<domain>.client.ts        ← service: legacy | gd | ccb | cab
-        <service>/<domain>.types.ts
-        client.api.ts                      ← facade: one property per domain client
-      backoffice/
-        <domain>.client.ts                  ← Admin Web API domains (bonus, template-bonus, …)
-        <domain>.types.ts
-        backoffice.api.ts                   ← facade
-    fixtures/
-      api.fixture.ts                        ← test.extend: clientApi, clientPlayer, backofficeApi
-  test-data/
-    client/<domain>/<name>.builder.ts
-    client/<domain>/schemas/<name>.schema.ts
-    backoffice/<domain>/<name>.builder.ts
-    backoffice/<domain>/schemas/<name>.schema.ts
-  tests/
-    _setup/                                 ← *-setup projects (health, players); not Testomat cases
-    Client/API/<domain>/<name>.spec.ts
-    Backoffice/API/Bonus-Admin/<name>.spec.ts
-  playwright.config.ts                      ← projects client-api, backoffice-api
-```
+- **Test defect:** your mistake. Fix the test.
+- **Product defect:** the API breaks its own description or a stated rule. Leave the assertion as
+  it is. Do not loosen it, skip it, or wrap it in a condition. Report it with the request, the
+  expected and the real answer. Ask the user whether to keep it red or mark it `test.fail()` with
+  a comment naming the defect.
+- **Description defect:** the API behaves sensibly and the description is wrong or silent. Report
+  it. Assert the real behaviour only after the user confirms it is intended.
+- **Environment:** access, data, limits. Say what is needed.
 
-### File naming
+Never make a red test green by weakening what it checks.
 
-`<subject>.<role>.ts` — dot separates the role, kebab-case inside a segment. The directory answers
-*whose* (`core/` = brand-agnostic, `client/` = brand, `client/legacy/` = service); the suffix answers
-*what kind*.
+## Step 7 — Prove each test can fail
 
-| Suffix | Role |
-|---|---|
-| `.client.ts` | sends HTTP, extends `BaseClient` |
-| `.types.ts` | wire shapes, aliased from `.schema/client-gateway.d.ts` |
-| `.api.ts` | facade over one target's domain clients |
-| `.matcher.ts` | `expect.extend` addition |
-| `.fixture.ts` | Playwright fixture |
-| `.reporter.ts` | Playwright reporter |
-| `.builder.ts` | test-data factory |
-| `.schema.ts` | Zod runtime schema |
-| `.spec.ts` | Playwright E2E test (`tests/`) |
-| `.test.ts` | Bun unit test (`src/`, `test-data/`) |
+For every new test, break one expectation on purpose (the status, one value, the schema name), run
+it, see it fail for that reason, and restore it. A test that stays green with a wrong expectation
+checks nothing: fix it or delete it. Restore by undoing your own edit, then confirm with a run.
+Tell the user in plain words what each test would catch ("fails if the status becomes 403").
+Finish with a run that gives the same result as step 6 (green, or red only for reported product
+defects) and the type check.
 
-The last two are deliberately distinct: different runners, and `playwright.config.ts` never points
-a `testDir` at `src/`. Plain helpers in `core/` (`envelopes.ts`, `redact.ts`) carry no role suffix —
-name them after the subject, not the action.
+## Step 8 — Record what you learned
 
-Do not name a client `*.controller.ts`. A controller receives requests; these send them.
+Report: the tests written, findings, and the commands to run them.
 
-## 2. Non-negotiable rules
+Then propose additions to `CLAUDE.md`, as exact lines, and add them after a yes:
 
-Read `references/conventions.md` for details. Short version:
+- to **Project profile**: facts about the product you had to discover (an error code, a rule, a
+  limit, a field that behaves unexpectedly, an endpoint that is unsafe to call);
+- to **Test conventions**: a choice you made that the next spec should repeat (file naming, where
+  data helpers live, which id is safe for a 404).
 
-### 2.1 Backoffice goes through the Management API Gateway `/apikey/*` routes only
-Base URL is `MANAGEMENT_API_GATEWAY_URL`; every path starts `/apikey/admin/...`. Auth is the
-gateway ApiAuth scheme: `UserId` + `ApiKey` headers, attached by the `backofficeApi` fixture and
-never by a client or a spec. Full contract: `references/auth-patterns.md` § Backoffice.
-
-Never call `admin-api.*` directly, never use the legacy `Api-UserId` / `Api-Key` scheme (it
-covers only the Product, Segment, and Content controllers), never use `backoffice-spa.example` (the SPA host) as
-an API base (it is the BO SPA and answers 200 `text/html` for every path), and never reuse a
-browser BO JWT or cookie. Credentials live only in env vars documented in `qa/.env.example`; no BO
-user id or key is ever hard-coded.
-
-### 2.2 Never build clients in a test body
-Use fixtures from `src/fixtures/api.fixture.ts` (`clientApi`, `clientPlayer`, `backofficeApi`).
-Import `test` and `expect` from that fixture file, not from `@playwright/test`.
-
-### 2.3 Status before body
-```typescript
-expect(response.status, "descriptive failure message").toBe(200);
-expect(response.body).toMatchSchema(MyResponseSchema);
-```
-
-### 2.4 `failOnStatusCode` is always false
-The base client sets it. The test owns every status code.
-
-### 2.5 Know the envelope before asserting
-- **the legacy envelope service** (`/legacy-api/...`): legacy `DomainApiResponse`. A business failure can arrive as
-  HTTP 200 **or** a 4xx that still carries the envelope (qa: `v4/Auth/Register` with a too-long
-  password → HTTP 400, `ResponseCode: "InvalidPassword"`). Unwrap with `asDomainApiResponse()` and
-  assert both status and `ResponseCode` on every call. Observed success code for v4 Auth: `"Success"`.
-- **The newer services**: bare JSON on success; errors are HTTP status + RFC 7807 ProblemDetails where
-  `title` is the machine code. Use `asProblemDetails()`.
-- **Backoffice Admin Web API**: confirm the shape from the gateway OpenAPI before asserting.
-
-### 2.6 Exact match for error codes and messages
-Use `toBe` / `toEqual` on `ResponseCode`, ProblemDetails `title`, and message text. Never
-`toContain`. When a backend policy change breaks the match, update the expectation in the same change.
-
-### 2.7 Builders for payloads with > 3 fields, Zod schema for every response type
-See `references/builders.md`.
-
-### 2.8 New suite → new Playwright project with a non-overlapping `testDir`
-An overlapping `testDir` runs the same specs twice under two projects. Setup projects end with
-`-setup` so the Testomat reporter skips them.
-
-### 2.9 Attach diagnostics before the assertion that can throw
-`expect()` throws synchronously; an attach placed after it never runs. Redact tokens first.
-
-### 2.10 Traceability
-- Test title carries the Testomat id once it exists: `"<title> @T1a2b3c4d"`. Never invent `@T`/`@S`
-  ids; the first Testomat import writes them.
-- When the case comes from an OpenSpec change, keep its `local_id` (e.g. `TC-BRAND-BONUS-001`)
-  in the title or a `test.info().annotations` entry.
-- `test.fixme` needs a tracker reference in the title. The ticket prefix convention is not decided
-  yet: ask the user which ticket to reference instead of inventing one.
-
-### 2.11 Secrets and data
-- Credentials only via env names documented in `qa/.env.example`. Never hard-code or log them.
-- Mutating tests run on dev/qa only. Every entity a test creates carries a `qa-pw-` prefix. There
-  is no agreed cleanup mechanism yet: do not add bulk-delete helpers; report what the test leaves
-  behind in the test summary.
-
-## 3. Where to look first
-
-- Playwright config and projects: `qa/playwright.config.ts`
-- Package scripts and env names: `qa/package.json`, `qa/.env.example`, `qa/README.md`
-- Client URL grammar, headers, envelopes: `packages/bff/README.md`, `packages/bff/src/http/request.ts`,
-  `packages/bff/src/http/envelope.ts`
-- Client auth flow reference: `packages/bff/src/handlers/auth.ts` (`/Auth/Register`, `/Auth/Login`, `/Auth/Refresh`)
-- Bonus contracts used by the storefront: `packages/bff/src/contracts/bonus.ts`, `packages/bff/src/handlers/bonus.ts`
-- Backoffice contract: `{MANAGEMENT_API_GATEWAY_URL}/openapi/v1.json`
-- Once the first spec exists in a target, it becomes the reference: mirror it.
-
-## 4. Workflow: write a test end to end
-
-Follow these steps in order.
-
-**Step 1 — Locate the contract and types**
-Find the endpoint in the spec for its target (§0). If `qa/.schema/*.d.ts` is missing or stale,
-regenerate it (`references/new-domain.md`).
-- **Type present and accurate** → extract it (`paths[...]` / `components['schemas'][...]`).
-- **Endpoint or schema missing** (`Record<string, never>`, absent path): **stop and report**. Do not
-  derive the shape from backend or BFF code.
-- **Present but inaccurate** (nullability, missing field): augment per `references/conventions.md`
-  § Spec gaps, comment why, and report the gap to the user.
-
-**Step 2 — Draft test cases and get approval**
-Start from the OpenSpec change test cases or the Testomat suite when one exists. List positive and
-negative cases with priority (P1 happy path / smoke, P2 auth and permissions, P3 validation edges).
-Flag cases that must be verified through a second endpoint (write, then read back).
-**Stop. Present the list and wait for approval.**
-
-**Step 3 — Create or extend the client** in `src/api/<target>/...` and register it in the facade.
-
-**Step 4 — Builder** if the payload has more than 3 fields.
-
-**Step 5 — Zod schema** for every new response type.
-
-**Step 6 — Fixtures** only when shared setup does not fit the spec.
-
-**Step 7 — Spec.** Implement only approved cases. Use `test.step()` for multi-call tests so
-Testomat shows the failing step.
-
-**Step 8 — Verify**
-```sh
-bun run --cwd qa typecheck
-bun run --cwd qa lint
-bun run --cwd qa e2e:list                  # no network
-bun run --cwd qa e2e:client:api           # or e2e:backoffice:api — live
-```
-Report what ran, against which environment, and what data the run created.
-
-## 5. Out of scope unless asked
-
-- UI/browser test code (use `playwright-sdet-expert`).
-- Changing `packages/bff` or app code to make a test pass.
-- CI/CD and Testomat workflow changes.
-- Changing reporters or global Playwright settings.
-- Cleanup/bulk-delete tooling for shared environments.
+This is how the tests become specific to the product while the skill stays the same for every
+product. Do not record guesses, and do not record what the API description already says clearly.
