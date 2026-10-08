@@ -1,40 +1,46 @@
 ---
 name: api-contract-reviewer
 description: |
-  Behavioral review of Playwright API contract tests in the `qa/` package
-  (`qa/tests/Client/API/**`, `qa/tests/Backoffice/API/**`, `qa/src/api/**`, `qa/src/fixtures/**`)
-  for patterns that cause false positives, silent contract drift, test coupling, secret leaks, or
-  prohibited Backoffice access. API-only: does not check UI locators, waits, or Page Objects.
+  Behavioral review of Playwright API contract tests (specs, clients, fixtures, test data) for
+  patterns that cause false positives, silent contract drift, test coupling, secret leaks, or
+  access through a route the project forbids. Reads the project's `CLAUDE.md` for what is
+  particular about the product. API-only: does not check UI locators, waits, or Page Objects.
   Trigger: "review this API test", "check this API spec", "is this API test correct", "review API
   spec", "why is this contract test flaky", "code review API test", "check contract test quality",
-  "anti-patterns in this API spec", any `.spec.ts` under `qa/tests/*/API/` shared without
-  explicit instructions.
+  "anti-patterns in this API spec", any API `.spec.ts` shared without explicit instructions.
 ---
 
 # API Contract Reviewer
 
 Behavioral review of Playwright API contract tests. Find patterns that cause false positives,
 silent contract drift, coupling between tests, auth or secret problems, and violations of the
-Backoffice access rules. Not a style linter: Biome covers formatting and style.
+project's access rules. Not a style linter: the formatter covers formatting and style.
 
 ## When this skill applies
 
 - "review this API test / spec", "is this contract test correct / flaky / OK?"
-- A spec under `qa/tests/Client/API/` or `qa/tests/Backoffice/API/` shared without instructions
-- A PR diff touching `qa/src/api/**`, `qa/src/fixtures/**`, or `qa/test-data/**`
+- An API spec shared without instructions
+- A PR diff touching API clients, fixtures, or test data
 
 If the user shares a directory, scan every `.spec.ts` plus the clients and fixtures they import.
 
 ## Context you need before reviewing
 
-- Envelopes: the legacy envelope service returns `DomainApiResponse` (business failures can be HTTP 200 with a non-success
-  `ResponseCode`); the games service/the claim service/the availability service return bare JSON and RFC 7807 ProblemDetails with the code in `title`.
-- Client calls need `gate-auth` (from `API_GATE_USER`/`API_GATE_PASS`) and, for player endpoints,
-  a Bearer token from a player the run registered.
-- Backoffice: Management API Gateway only. `admin-api.*`, `UserId` headers, and BO user ids are
-  prohibited. Mutating tests run on dev/qa only.
-- The writer conventions live in `qa/.claude/skills/api-contract-writer/`. When a finding depends
-  on a convention, cite the reference file.
+Read `CLAUDE.md` in the test folder first ("Project profile" and "Test conventions"). It tells
+you what this skill cannot know:
+
+- Response shapes: plain JSON, or an envelope where a business failure can be HTTP 200 with a
+  non-success code; where the machine-readable error code lives.
+- Auth: which headers or tokens every call needs, and where test accounts come from.
+- Access rules: which hosts and routes tests may use, which endpoints must not be called, where
+  mutating tests may run.
+- The suite's own conventions (fixtures, data helpers, naming).
+
+No `CLAUDE.md`: infer these from the fixtures and two existing specs, and say in the report that
+the review assumed them. The writer conventions are in the `api-contract-writer` skill
+(`references/honest-tests.md`, `references/optional-layers.md`); cite them when a finding depends
+on one. Catalog items about envelopes (C2, H2) and forbidden routes (C4) apply only when the
+profile describes such a thing: adapt the names in them to this product.
 
 ## Workflow
 
@@ -48,8 +54,8 @@ If the user shares a directory, scan every `.spec.ts` plus the clients and fixtu
 ## Philosophy
 
 The author is a senior QA engineer. Every finding explains **how** the pattern breaks at runtime:
-which false pass, which leak, which flake. Money, bonuses, and balances are in scope for this
-product, so treat silent false passes on those as Critical.
+which false pass, which leak, which flake. Where the product handles money, balances or
+permissions, treat silent false passes on those as Critical.
 
 ## References
 

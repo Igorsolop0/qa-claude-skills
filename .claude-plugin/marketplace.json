@@ -6,32 +6,135 @@
   },
   "metadata": {
     "description": "Personal collection of Claude Code skills by Ihor Solopii — Senior QA Engineer. Built from real workflows and curated against a gate-checklist (see docs/how-i-build-skills.md).",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "plugins": [
+    {
+      "name": "pw-project-bootstrap",
+      "source": "./skills/pw-project-bootstrap",
+      "description": "Sets up a Playwright + TypeScript test project from zero by interviewing the QA engineer: machine check, repository detection, 3-4 short question rounds, a plan to approve, then config with per-domain projects, env handling, OpenAPI types and run-time schemas, API client, login setup per role, one green health test, CI workflow, and a CLAUDE.md project profile that later skills read.",
+      "version": "0.1.0",
+      "category": "qa",
+      "tags": [
+        "playwright",
+        "testing",
+        "qa",
+        "typescript",
+        "bootstrap",
+        "setup",
+        "openapi",
+        "api"
+      ]
+    },
+    {
+      "name": "api-contract-writer",
+      "source": "./skills/api-contract-writer",
+      "description": "Writes three to six honest API contract tests for one endpoint on any product: reads the operation from the API description, probes the real endpoint, proposes the tests and waits, writes, runs, classifies every red test (test, product, description, environment), proves each test can fail, and records what it learned in the project's CLAUDE.md.",
+      "version": "0.2.0",
+      "category": "qa",
+      "tags": [
+        "playwright",
+        "testing",
+        "qa",
+        "typescript",
+        "api",
+        "contract",
+        "openapi"
+      ]
+    },
+    {
+      "name": "e2e-writer",
+      "source": "./skills/e2e-writer",
+      "description": "Writes one or two honest browser tests for one user scenario on any product: follows the page-object structure the project has (or sets up PageHolder, Component, AppPage, Application), looks at the real page before naming a locator, prepares data through the API, gives each role its own logged-in app, runs three times, proves each test can fail, records conventions in CLAUDE.md.",
+      "version": "0.1.0",
+      "category": "qa",
+      "tags": [
+        "playwright",
+        "testing",
+        "qa",
+        "typescript",
+        "e2e",
+        "page-object",
+        "pom"
+      ]
+    },
+    {
+      "name": "api-contract-reviewer",
+      "source": "./skills/api-contract-reviewer",
+      "description": "Behavioral review of Playwright API contract tests: false positives, silent contract drift, test coupling, secret leaks, access through routes the project forbids. Reads the project's CLAUDE.md for what is particular about the product.",
+      "version": "0.2.0",
+      "category": "qa",
+      "tags": [
+        "playwright",
+        "testing",
+        "qa",
+        "typescript",
+        "api",
+        "contract",
+        "code-review"
+      ]
+    },
+    {
+      "name": "qa-shift-left",
+      "source": "./skills/qa-shift-left",
+      "description": "Designs a test plan before implementation: layer analysis, acceptance-criteria scoring, test-design technique selection, level assignment with a rationale per scenario, a live-spec budget, and structured verdicts.",
+      "version": "0.1.0",
+      "category": "qa",
+      "tags": [
+        "testing",
+        "qa",
+        "test-design",
+        "shift-left"
+      ]
+    },
     {
       "name": "pw-test-review",
       "source": "./skills/pw-test-review",
       "description": "Behavioral review of Playwright tests — finds anti-patterns that cause flakes, false positives, and silent bugs (networkidle abuse, missing await, beforeAll with shared state, toContainText on numeric values, unchecked goto status, force clicks, weak locators, hardcoded sleeps, list-iteration false positives, positional/strict-mode locator ambiguity, XPath-into-shadow-DOM). Context-aware priority bumps for iGaming/fintech/money domains.",
       "version": "0.2.0",
       "category": "qa",
-      "tags": ["playwright", "testing", "code-review", "qa", "e2e", "typescript"]
+      "tags": [
+        "playwright",
+        "testing",
+        "code-review",
+        "qa",
+        "e2e",
+        "typescript"
+      ]
     },
     {
       "name": "pw-pom-generator",
       "source": "./skills/pw-pom-generator",
-      "description": "Scaffold a per-flow Playwright suite (Page Object + typed presets + spec) from your locator/scenario notes. Framework- and auth-agnostic — wallet/login/API setup steps are emitted as clearly marked SETUP_REQUIRED placeholders the user fills in. Enforces locator priority, web-first assertions, no raw selectors in specs, and Node 24 strip-only TS compatibility.",
-      "version": "0.1.0",
+      "description": "Scaffold a Playwright suite (Page Object + typed presets + spec) from your locator/scenario notes when the app cannot be opened yet. Reads the project's CLAUDE.md and follows the page-object structure the project already has (per-flow or registry). Auth/setup steps are emitted as clearly marked SETUP_REQUIRED placeholders. Enforces locator priority, web-first assertions, no raw selectors in specs.",
+      "version": "0.2.0",
       "category": "qa",
-      "tags": ["playwright", "testing", "scaffolding", "page-object", "pom", "qa", "e2e", "typescript"]
+      "tags": [
+        "playwright",
+        "testing",
+        "scaffolding",
+        "page-object",
+        "pom",
+        "qa",
+        "e2e",
+        "typescript"
+      ]
     },
     {
       "name": "playwright-sdet-expert",
       "source": "./skills/playwright-sdet-expert",
-      "description": "Senior SDET assistant for Playwright/TypeScript projects — writes specs, Page Objects, presets, and cross-flow components matching a per-flow POM layout. Enforces accessible-locator priority, exact-match assertions, no-waitForTimeout discipline, fixture-based composition (no BasePage hierarchies), and the requirements-first/gap-analysis workflow. Covers async/eventual-consistency waits and a refactor-on-sight anti-pattern catalog.",
-      "version": "0.1.0",
+      "description": "Senior SDET assistant for Playwright/TypeScript projects — writes specs, Page Objects, presets, and components in the layout the repo already has (per-flow or registry). The project's CLAUDE.md profile comes first. Enforces accessible-locator priority, exact-match assertions, no-waitForTimeout discipline, fixture-based composition (no wrapper base classes), and the requirements-first/gap-analysis workflow.",
+      "version": "0.2.0",
       "category": "qa",
-      "tags": ["playwright", "testing", "page-object", "pom", "sdet", "qa", "e2e", "typescript"]
+      "tags": [
+        "playwright",
+        "testing",
+        "page-object",
+        "pom",
+        "sdet",
+        "qa",
+        "e2e",
+        "typescript"
+      ]
     }
   ]
 }

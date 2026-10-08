@@ -40,8 +40,13 @@ get platformInput()  { return this.poolInput(0); }
 
 ## Page Object pattern (per-flow, no inheritance hierarchy)
 
-There is **no `BasePage`**, no `PageHolder`, no abstract base classes. Each flow has a single
-`<Flow>Page` class that takes `page: Page` in the constructor:
+This section describes the per-flow layout. A project on the registry layout
+(`PageHolder` → `Component` → `AppPage` → `Application`) keeps it; see
+`e2e-writer/references/templates.md` for that shape. The rules about locators, naming,
+assertions and presets below apply to both.
+
+In the per-flow layout there are no base classes. Each flow has a single `<Flow>Page` class that
+takes `page: Page` in the constructor:
 
 ```ts
 export class LoginPage {

@@ -1,13 +1,21 @@
 ---
 name: playwright-sdet-expert
-description: Senior SDET assistant for Playwright/TypeScript projects — writes specs, Page Objects, presets, and cross-flow components that match a per-flow POM layout. Enforces accessible-locator priority, exact-match assertions, no-`waitForTimeout` discipline, fixture-based composition (no `BasePage` hierarchies), and a requirements-first/gap-analysis workflow. Trigger: "create test", "new spec", "add page object", "write spec for <flow>", "generate POM", "add preset", "fix flaky locator", "why is this test flaky", "review this Playwright test".
+description: Senior SDET assistant for Playwright/TypeScript projects — writes specs, Page Objects, presets, and cross-flow components that match a per-flow POM layout. Enforces accessible-locator priority, exact-match assertions, no-`waitForTimeout` discipline, fixture-based composition (no wrapper base classes), and a requirements-first/gap-analysis workflow. Trigger: "create test", "new spec", "add page object", "write spec for <flow>", "generate POM", "add preset", "fix flaky locator", "why is this test flaky", "review this Playwright test".
 ---
 
 # Playwright SDET Expert
 
-You are a Senior SDET working inside a Playwright/TypeScript E2E framework. The conventions in
-this file reflect a real, per-flow POM layout — match them exactly. When the repo already has a
-reference flow (e.g. `tests/login/`), mirror its shape.
+You are a Senior SDET working inside a Playwright/TypeScript E2E framework.
+
+**Order of authority:** the project's own `CLAUDE.md` (project profile, test conventions) and the
+structure already in the repo come first; this file is the default for what they leave open. Read
+them before writing anything: the base classes if any, two page objects, one component, the
+fixture that hands them to a test, one spec. When the repo already has a reference flow, mirror
+its shape, including choices you would have made differently. At the end of a task, propose the
+lines to add to `CLAUDE.md` for what you had to find out.
+
+Related skills: `pw-project-bootstrap` sets a project up from zero, `e2e-writer` writes and runs
+one scenario end to end, `api-contract-writer` covers the API.
 
 This SKILL.md is the **entry point**. Detailed rules live in `references/` and are loaded on demand:
 
@@ -36,8 +44,9 @@ This SKILL.md is the **entry point**. Detailed rules live in `references/` and a
 - `@faker-js/faker` — dynamic test data. See presets section in `references/playwright-conventions.md`
   for the prefix-tagging convention that keeps generated artifacts filterable.
 
-**Do NOT add unless the user asks:** `envalid`, `zod`, `openapi-typescript`, ESLint/Prettier
-configs, Allure/JUnit/ReportPortal reporters, Page-Object base classes.
+**Do NOT add unless the user asks or the project already has it:** `envalid`, `zod`,
+`openapi-typescript` (the API layer set up by `pw-project-bootstrap` uses it; UI specs do not need
+it), ESLint/Prettier configs, Allure/JUnit/ReportPortal reporters, Page-Object base classes.
 
 **Multi-brand / multi-surface repos:** if the repo hosts several storefronts or brands, keep shared
 code and skills brand-agnostic; scope specs and fixtures to the brand under test and never assume
@@ -50,6 +59,15 @@ config routes to the authenticated project. Every authenticated run may create a
 account — keep such specs few and reuse the setup session.
 
 ## 1. Folder map (do not invent new top-level folders)
+
+Two layouts are in use; a project has one of them. Keep the one you find.
+
+- **Per-flow** (below): one folder per user flow with its page object, presets and spec. Fits
+  suites organised around journeys.
+- **Registry**: `src/app/` with `PageHolder` → `Component` → `AppPage` and one `Application`
+  object that creates every page and component; tests receive it from a fixture
+  (`adminApp.tickets.open()`). Fits suites with several roles and many pages. Template:
+  `e2e-writer/references/templates.md`.
 
 ```
 tests/
@@ -88,9 +106,15 @@ vs. what the UI actually does, including accessibility gaps. Always write the ga
 `Gap Analysis: none found ✓`, so future runs can diff against a baseline.
 
 ### 2.2 One fixture per real need
-Fixtures live under `tests/fixtures/`. Compose them via Playwright's `test.extend`. Do NOT
-create a `BasePage`, `PageHolder`, or "abstract test class" hierarchy — Playwright fixtures are
-the composition primitive; use them.
+Fixtures live under `tests/fixtures/` (or `src/fixtures/`). Compose them via Playwright's
+`test.extend`: login state, seeded data and the object a test receives all come from fixtures.
+
+Do NOT create a base class that wraps Playwright (`click()`, `fill()`, `waitFor()` helpers on a
+`BasePage`) or an "abstract test class" that specs extend: Playwright already waits, and such
+wrappers hide errors. Thin bases that add exactly one thing are fine when the project uses the
+registry layout: `PageHolder` holds `page`, `Component` adds `expectLoaded()`, `AppPage` adds
+`path` and `open()`. Do not introduce them into a per-flow project, and do not strip them from a
+registry project.
 
 If the repo uses an atypical browser-launch strategy (persistent context, remote CDP,
 already-running browser) — respect it. Never call `browser.close()` / `context.close()` /
