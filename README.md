@@ -25,7 +25,8 @@ gate, it doesn't ship here.
 | [`api-contract-writer`](skills/api-contract-writer) | Writes three to six honest API contract tests for one endpoint: reads the operation from the API description, probes the real endpoint, proposes the tests and waits, writes, runs, classifies every red test (test / product / description / environment), proves each test can fail, and records what it learned about the product. |
 | [`e2e-writer`](skills/e2e-writer) | Writes one or two browser tests for one user scenario: follows the page-object structure the project already has (or sets up `PageHolder` → `Component` → `AppPage` + `Application`), looks at the real page before naming a locator, prepares data through the API, one logged-in app per role, runs three times, proves each test can fail. |
 | [`api-contract-reviewer`](skills/api-contract-reviewer) | Behavioral review of Playwright API contract tests — finds false positives, silent contract drift, test coupling, secret leaks, and access through routes the project forbids. |
-| [`pw-test-review`](skills/pw-test-review) | Behavioral review of Playwright tests — finds anti-patterns that cause flakes, false positives, and silent bugs (vacuous list loops, positional locators, strict-mode silencing, substring assertions on money). Context-aware priority bumps for money domains. |
+| [`pw-test-review`](skills/pw-test-review) | Behavioral review of Playwright tests — finds anti-patterns that cause flakes, false positives, and silent bugs (vacuous list loops, positional locators, strict-mode silencing, substring assertions on money, expected values computed the way the app computes them). On request, a **mutation check** breaks one assertion at a time and proves the test goes red; a Bun runner restores the file byte-for-byte. Context-aware priority bumps for money domains. |
+| [`pw-failure-triage`](skills/pw-failure-triage) | Triages a red Playwright run: collects evidence from the JSON report and traces, classifies each failure as `infra`, `test-drift`, `product-bug` or `flaky` against the commits deployed since the last green run, heals only what is the test's fault (verified with `--repeat-each=3`), and drafts issues for product bugs. Never turns a regression into a green run. |
 | [`pw-pom-generator`](skills/pw-pom-generator) | Scaffold a Playwright suite (Page Object + typed presets + spec) from locator/scenario notes when the app cannot be opened yet. Follows the structure the project has. Unknown steps are emitted as `SETUP_REQUIRED` placeholders, never fake code. |
 | [`playwright-sdet-expert`](skills/playwright-sdet-expert) | Full SDET-assistant persona for an existing Playwright/TypeScript repo — locator priority ladder, per-flow or registry POM layout (whichever the repo has), exact-match assertions, async/eventual-consistency waits, and a requirements-first workflow with gap analysis. |
 
@@ -47,7 +48,7 @@ lines for it at the end of a task. A structure that already exists in the projec
 default in the skill. Adapting is expected; the skill files themselves stay untouched.
 
 Typical order on a new project: `pw-project-bootstrap` → `api-contract-writer` per endpoint →
-`e2e-writer` per scenario → the two reviewers before a pull request.
+`e2e-writer` per scenario → the two reviewers before a pull request → `pw-failure-triage` on every red run.
 
 ## Install
 
@@ -61,6 +62,7 @@ Typical order on a new project: `pw-project-bootstrap` → `api-contract-writer`
 /plugin install e2e-writer@qa-claude-skills
 /plugin install api-contract-reviewer@qa-claude-skills
 /plugin install pw-test-review@qa-claude-skills
+/plugin install pw-failure-triage@qa-claude-skills
 /plugin install pw-pom-generator@qa-claude-skills
 /plugin install playwright-sdet-expert@qa-claude-skills
 ```

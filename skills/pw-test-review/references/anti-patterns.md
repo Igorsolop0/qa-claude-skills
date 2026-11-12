@@ -148,6 +148,27 @@ Walk through the test code and flag the following. Categorize each finding by pr
   used against a component that renders into shadow DOM, flag it as broken-by-design, not just
   brittle.
 
+### 26. Expected value computed the way the app computes it
+
+- **Why:** `toHaveText(formatMoney(deposit * WAGER))` repeats the app's formula inside the test. When
+  the formula is wrong, the test makes the same mistake and stays green. The mutation check catches the
+  symptom (a survivor); this rule names the cause.
+- **Fix:** write the expected value as a literal from the requirement. A value taken from the live UI
+  must first be checked against the requirement or another independent source:
+  `toHaveText("$ 150,00")`. When several cases share the shape, put the literals in a table of inputs
+  and expected outputs, not a formula.
+
+### 27. `as` cast on test data
+
+- **Why:** `{ ... } as RegisterBody` or `as unknown as T` turns off type checking exactly where test data
+  drifts from the contract. The spec compiles after the contract changes and fails at runtime, or worse,
+  sends a payload nobody meant to send.
+- **Fix:** build valid values through the preset type or the builder. For a deliberately invalid payload,
+  add a named builder method only when the consumer's type can represent the invalid state
+  (`withoutPassword()`, when the request type makes the field optional). When the test must omit a
+  required field or send a wrong type, keep one narrow cast at the request boundary with a comment why,
+  and assert the server response (`withoutPhone as OtpRequestInput`).
+
 ---
 
 ## Low
@@ -167,12 +188,20 @@ Walk through the test code and flag the following. Categorize each finding by pr
 ### 19. Global test-data file (`testData.ts` / `fixtures.ts` / `data.ts`)
 
 - **Why:** when one file aggregates presets/users/payloads from multiple unrelated flows, every spec imports the union, every change touches the same file, and the test data becomes a god object. Renaming a single preset cascades into specs that should have nothing to do with it.
-- **Fix:** colocate test data with the flow that owns it (`tests/<flow>/<flow>.presets.ts`). Lift only true cross-flow atoms (durations, enums, hard ceilings) into domain-scoped a domain-scoped constants file next to the flows that use them — still not one mega-file.
+- **Fix:** colocate test data with the flow that owns it (`tests/<flow>/<flow>.presets.ts`). Lift only true cross-flow atoms (durations, enums, hard ceilings) into one domain-scoped constants file next to the flows that use them — still not one mega-file.
 
 ### 20. Separate `locators/` folder or `*.locators.ts` file
 
 - **Why:** extracting locators away from the Page Object that owns them adds an import edge without payoff — the locator and the action that uses it now drift independently, and you can't see in one place what a page exposes. The "swap locators per environment" use case rarely materialises.
 - **Fix:** locators are `get`-properties on the POM/Component class. If you need environment-conditional selectors, branch inside the getter, not via a parallel file tree.
+
+### 28. Page Object method that only forwards one call
+
+- **Why:** `async clickLogin() { await this.loginButton.click(); }` adds a name and an import edge but
+  no behaviour: the spec could call the locator directly. Many of them make a POM look rich while it
+  hides nothing (the deletion test: if inlining the method loses nothing, it should not exist).
+- **Fix:** delete it and use the getter, or make it carry a whole user intent: the steps of one action
+  plus the wait for its outcome (`signInAs(account)`).
 
 ---
 
@@ -183,6 +212,8 @@ When the user mentions any of: **money, balances, transactions, KYC, iGaming, fi
 - `toContainText` on numeric values (rule 6) — substring match on `"950"` can match `"9509"`.
 - Unchecked `response.status()` (rule 7) — silent 5xx on a wallet page can keep tests green while real users see a broken balance.
 - Hardcoded URLs (rule 13) — accidentally pointing staging tests at prod with real money is a Sev-1 incident.
+- Expected value computed the way the app computes it (rule 26) — a wrong wager or bonus formula
+  passes the test that copies it.
 - `.all()` / `count()` loop with no `toHaveCount` guard (rule 21) — a silent false pass over a
   balances / transactions / bets list keeps the suite green while the feature is broken. In these
   domains an empty-list false pass is a Critical, not a Critical-only-in-theory.

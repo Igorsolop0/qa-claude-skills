@@ -180,3 +180,68 @@ name the actual failure mode before changing code:
    backend eventual consistency, see `references/async-waits.md`.
 5. **Non-unique role with no accessible name** — the app has an a11y gap. Flag it in the
    exploration report and fall back per the locator priority ladder above.
+
+## TypeScript design in test code
+
+Test code is code: it is read and changed more often than it is written. These rules keep specs,
+Page Objects, helpers and presets easy to change. Adapted from mattpocock/skills (MIT).
+
+**1. A Page Object method carries an intent, not one call.** Apply the deletion test: if deleting
+the method and inlining its body loses nothing, the method should not exist. A method that forwards
+one click is a pass-through; a method that groups the steps of one user intent and waits for its
+outcome is worth having.
+
+```ts
+// Pass-through: the spec learns nothing it couldn't read from the locator.
+async clickLogin() { await this.loginButton.click(); }
+
+// Intent: fills, submits, and waits until the dialog has closed.
+async signInAs(account: Credentials) { /* fill, submit, await expect(this.root).toBeHidden() */ }
+```
+
+**2. Helpers take what they need as arguments and return what they made.** A helper does not open
+its own context, read env vars, or write to module state. The caller passes `page`, `request` or a
+client; the helper returns the created entity, so the spec can assert on it and the report can show
+its id. Teardown trackers come in as arguments too: the helper registers what it created, and the
+fixture cleans it up after the test.
+
+```ts
+export async function createAndGet(
+  api: OrdersClient,
+  request: CreateOrderRequest,
+  created: TrackedOrder[], // the orders fixture cancels these after the test
+): Promise<{ id: string; order: OrderDto }> { … }
+```
+
+**3. Domain concepts get their own types.** Use a literal union instead of `string` for a closed
+set, and one type for fields that always travel together, instead of passing them one by one.
+
+```ts
+type CategoryId = "shoes" | "bags" | "sale";                // not: category: string
+interface Credentials { email: string; password: string } // not: (email, password, …)
+```
+
+Import a type from the module that already defines it (a builder, the API types); do not redeclare it.
+
+**4. A repeated `switch` becomes one map.** When the same branching on a union appears twice, keep
+one `Record<Union, Value>` next to the type. TypeScript then fails the build when a member is missing.
+
+```ts
+const CATEGORY_HEADING: Record<CategoryId, string> = { shoes: "Shoes", bags: "Bags", sale: "Sale" };
+```
+
+**5. No `as` casts on test data.** A cast silences the compiler exactly where the test data drifts
+from the contract. Build valid values through the preset type or the builder. For a deliberately
+invalid payload, add a named builder method only when the consumer's type can represent the invalid
+state (`withoutPassword()` where the field is optional). When the test must omit a required field or
+send a wrong type, keep one narrow cast at the request boundary with a comment why, and assert the
+server response.
+
+**6. Assert the outcome where the feature's user sees it.** For a customer feature, the outcome
+assertion reads the UI or the API the feature exposes to the customer. For a back-office feature it
+reads the back-office UI or API: there the operator is the user. A read the feature's user cannot see
+is fine for a precondition or as a second check, never as the only proof.
+
+**7. Import from the file that defines the thing.** No `index.ts` barrels in Page Object or API
+client folders: a barrel hides which module a spec really depends on and pulls the whole folder into
+every import.

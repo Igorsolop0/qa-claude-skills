@@ -22,6 +22,7 @@ This SKILL.md is the **entry point**. Detailed rules live in `references/` and a
 | When the task is about… | Read this file |
 |---|---|
 | writing a spec, POM, presets, assertions, or fixing a flaky locator | `references/playwright-conventions.md` |
+| shaping POM methods, helpers, types, or imports | `references/playwright-conventions.md` § TypeScript design |
 | async waits, eventual consistency, backend-driven state | `references/async-waits.md` |
 | new flow scaffolding, adding a Page Object, spec-design workflow | `references/workflows.md` |
 | reviewing/refactoring existing test code, "is this flaky?" | `references/anti-patterns.md` |
@@ -135,7 +136,22 @@ live in `src/constants/<domain>.ts`.
 Never extract locators into a separate `locators/` folder or `*.locators.ts` file. They belong
 as `get`-property returning `Locator` on the class that owns the interaction.
 
-### 2.6 Language
+### 2.6 Titles and tags
+- The title says what the feature's user (customer, guest, operator) can do or see, not how the
+  test does it: `Guest can open the sign-in form`, not `Clicks Sign in and checks #login-email`.
+  Product owners read these titles in the test-management tool and in reports.
+- **Regression is every test**, so it has no tag: a run without `--grep` is the regression run.
+  Tags mark the subsets on top of it (`@smoke`, a prod-safe tag, a section tag), as many as apply.
+  Do not add `@regression`: nothing selects it, and it drifts from what really runs.
+- Write tags through one constants module (`tag: [Tag.smoke, Tag.auth]`) and add a new tag there
+  first. Back it with a unit test that fails on a raw `"@…"` string in a spec: a typo in a raw tag
+  drops the test out of a `--grep` project without any error.
+- A **prod-safe** tag (`@prod`) marks a test that may run against production: a guest test that
+  registers nobody, submits no form, and moves no money. A dedicated project runs only those tests
+  against the production URL, so never point the base URL of the other projects at prod. Never tag
+  a test that takes an account or data-creating fixture.
+
+### 2.7 Language
 - Code, test names, comments, JSDoc — English.
 - Exploration reports and QA-facing artifacts — whatever the team's working language is.
 
