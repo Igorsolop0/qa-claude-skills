@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Personal collection of Claude Code skills by Ihor Solopii — Senior QA Engineer. Built from real workflows and curated against a gate-checklist (see docs/how-i-build-skills.md).",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "plugins": [
     {
@@ -90,16 +90,34 @@
     {
       "name": "pw-test-review",
       "source": "./skills/pw-test-review",
-      "description": "Behavioral review of Playwright tests — finds anti-patterns that cause flakes, false positives, and silent bugs (networkidle abuse, missing await, beforeAll with shared state, toContainText on numeric values, unchecked goto status, force clicks, weak locators, hardcoded sleeps, list-iteration false positives, positional/strict-mode locator ambiguity, XPath-into-shadow-DOM). Context-aware priority bumps for iGaming/fintech/money domains.",
-      "version": "0.2.0",
+      "description": "Behavioral review of Playwright tests — finds anti-patterns that cause flakes, false positives, and silent bugs (networkidle abuse, missing await, beforeAll with shared state, toContainText on numeric values, unchecked goto status, force clicks, weak locators, hardcoded sleeps, list-iteration false positives, positional/strict-mode locator ambiguity, XPath-into-shadow-DOM, expected values computed like the app, as-casts on test data). On request, a mutation check proves each test can fail: a Bun runner applies one single-line mutation, runs one test, and restores the original bytes. Context-aware priority bumps for iGaming/fintech/money domains.",
+      "version": "0.3.0",
+      "category": "qa",
+      "tags": [
+        "code-review",
+        "e2e",
+        "mutation-testing",
+        "playwright",
+        "qa",
+        "testing",
+        "typescript"
+      ]
+    },
+    {
+      "name": "pw-failure-triage",
+      "source": "./skills/pw-failure-triage",
+      "description": "Triages a red Playwright run: a Bun collector reads the JSON report and the kept traces (failing step, locator, backend calls with masked secrets, signals), then every failed or flaky test is classified as infra, test-drift, product-bug or flaky against evidence and the commits deployed since the last green run. Heals only test-drift and flaky with a verified local diff, drafts issues for product bugs, never hides a product failure to turn a run green.",
+      "version": "0.1.0",
       "category": "qa",
       "tags": [
         "playwright",
         "testing",
-        "code-review",
         "qa",
-        "e2e",
-        "typescript"
+        "triage",
+        "flaky",
+        "self-healing",
+        "traces",
+        "e2e"
       ]
     },
     {
@@ -122,8 +140,8 @@
     {
       "name": "playwright-sdet-expert",
       "source": "./skills/playwright-sdet-expert",
-      "description": "Senior SDET assistant for Playwright/TypeScript projects — writes specs, Page Objects, presets, and components in the layout the repo already has (per-flow or registry). The project's CLAUDE.md profile comes first. Enforces accessible-locator priority, exact-match assertions, no-waitForTimeout discipline, fixture-based composition (no wrapper base classes), and the requirements-first/gap-analysis workflow.",
-      "version": "0.2.0",
+      "description": "Senior SDET assistant for Playwright/TypeScript projects — writes specs, Page Objects, presets, and components in the layout the repo already has (per-flow or registry). The project's CLAUDE.md profile comes first. Enforces accessible-locator priority, exact-match assertions, no-waitForTimeout discipline, fixture-based composition (no wrapper base classes), and the requirements-first/gap-analysis workflow; TypeScript design rules for test code and tag conventions (regression untagged, tags from one constants module, a prod-safe tag).",
+      "version": "0.3.0",
       "category": "qa",
       "tags": [
         "playwright",
