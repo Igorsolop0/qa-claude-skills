@@ -122,6 +122,17 @@ already-running browser) — respect it. Never call `browser.close()` / `context
 `page.close()` inside a test or fixture when the context is intentionally long-lived; that
 kills the shared session.
 
+### 2.2a Accounts come from the API; the UI signs in only where the test is about signing in
+- A spec that needs an account gets it from a fixture that creates it through the API: a fresh
+  account per test when the test changes state (checkout, payments, profile edits, logout), or a
+  worker-scoped shared account when the test only reads.
+- Only the auth specs drive the sign-in and sign-up forms. Every other spec that merely needs a
+  signed-in browser takes a fixture that signs in through the API (the context shares the
+  cookies) and does not navigate: the spec opens the route it is about, already signed in.
+- Account creation targets test environments only. Production gets a pre-created account that the
+  production project supplies to the same fixture, so one spec runs on both without registering
+  anyone on prod.
+
 ### 2.3 No `waitForTimeout`
 Use web-first assertions (`expect(...).toBeVisible()`, `toBeEnabled()`, `toHaveURL(...)`),
 `expect.poll`, `expect(...).toPass()`, or `page.waitForResponse`. For state that depends on a
@@ -140,6 +151,10 @@ as `get`-property returning `Locator` on the class that owns the interaction.
 - The title says what the feature's user (customer, guest, operator) can do or see, not how the
   test does it: `Guest can open the sign-in form`, not `Clicks Sign in and checks #login-email`.
   Product owners read these titles in the test-management tool and in reports.
+- Wrap each step of a multi-step case in `test.step("…")`, named in the same user terms, so the
+  report shows which step failed instead of only a line number.
+- When the project links tests to cases (an id in the title or a tag), keep the id the tool
+  assigned; never invent one.
 - **Regression is every test**, so it has no tag: a run without `--grep` is the regression run.
   Tags mark the subsets on top of it (`@smoke`, a prod-safe tag, a section tag), as many as apply.
   Do not add `@regression`: nothing selects it, and it drifts from what really runs.
@@ -149,7 +164,8 @@ as `get`-property returning `Locator` on the class that owns the interaction.
 - A **prod-safe** tag (`@prod`) marks a test that may run against production: a guest test that
   registers nobody, submits no form, and moves no money. A dedicated project runs only those tests
   against the production URL, so never point the base URL of the other projects at prod. Never tag
-  a test that takes an account or data-creating fixture.
+  a test that takes a data-creating fixture; a read-only test may take the shared account when the
+  production project supplies a pre-created one (§2.2a).
 
 ### 2.7 Language
 - Code, test names, comments, JSDoc — English.
@@ -166,7 +182,20 @@ Fill these in per-repo when the skill is dropped into a new project:
 - Cross-flow components → `tests/components/`
 - Playwright config → `playwright.config.ts`
 
-## 4. Out of scope (do not implement unless asked)
+## 4. Verify before claiming done
+1. Typecheck and lint the test package with the project's own scripts.
+2. List the tests (`playwright test --list`) to confirm the new ones land in the intended projects
+   and tags.
+3. Run each new test live against the test environment, with test-management reporting off, and
+   read the result, not just the exit code.
+4. Prove each new test can fail: break the assertion that carries its intent (or the input behind
+   it), see it go red for that reason, then restore it. A test that cannot fail proves nothing.
+   The `pw-test-review` skill's mutation check does this safely; `e2e-writer` Step 8 describes the
+   manual version.
+5. Report the environment, the projects that ran, pass/fail per test, and any live accounts or
+   data the runs created.
+
+## 5. Out of scope (do not implement unless asked)
 
 - CI/CD wiring — respect what's already there; don't propose GitHub Actions / other pipelines
   without an explicit ask.

@@ -46,7 +46,7 @@ describe("redactText", () => {
   });
 
   test("leaves text without secrets untouched", () => {
-    const error = "Error: BFF should send a code to the number\n\nExpected: 200\nReceived: 503";
+    const error = "Error: API should send a code to the number\n\nExpected: 200\nReceived: 503";
     expect(redactText(error)).toBe(error);
   });
 });

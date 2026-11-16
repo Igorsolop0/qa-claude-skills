@@ -11,7 +11,7 @@ Split each input into classes where every member is expected to behave the same,
 representative per class — valid and invalid.
 
 - Use when: an input has rule buckets (amount, status, role, locale, category).
-- the platform example: bonus amount → `below minimum`, `within range`, `above maximum`, `non-numeric`.
+- Example: coupon amount → `below minimum`, `within range`, `above maximum`, `non-numeric`.
 - Pitfall: partitions that overlap. If two classes can both apply, you have a decision table, not a partition.
 
 ### Boundary value analysis
@@ -19,51 +19,51 @@ representative per class — valid and invalid.
 Test the edges of each partition: the limit itself, one step below, one step above.
 
 - Use when: ranges, limits, timers, counters, page sizes, string lengths, expiry.
-- the platform example: password `5 / 6 / 20 / 21` characters against the storefront rule of 6–20;
-  bonus countdown at `T-1s`, `T`, `T+1s`; slider with `0 / 1 / max` cards.
+- Example: password `5 / 6 / 20 / 21` characters against a rule of 6–20;
+  coupon countdown at `T-1s`, `T`, `T+1s`; slider with `0 / 1 / max` cards.
 - Pitfall: testing only the middle of a range proves nearly nothing; the defect lives at the edge.
 
 ### Decision table
 
 Enumerate condition combinations and the expected rule for each. Collapse rows that cannot occur.
 
-- Use when: two or more conditions combine (profile × feature flag × brand, verified × balance × bonus state).
-- the platform example: bonus button state from `has active bonus` × `is verified` × `balance > 0`.
+- Use when: two or more conditions combine (profile × feature flag × variant, verified × balance × coupon state).
+- Example: coupon button state from `has active coupon` × `is verified` × `balance > 0`.
 - Output it as an actual table in the plan. Each surviving row is one scenario or one unit-test case.
 
 ### State transition
 
 Model states and the events that move between them; test valid transitions, then the invalid ones.
 
-- Use when: a status field drives behavior — session (guest → registering → player → logged out),
-  bonus (available → claimed → active → expired / cancelled), deposit, verification.
-- the platform example: cancel an already-cancelled bonus; claim an expired one; log out mid-flow.
+- Use when: a status field drives behavior — session (guest → registering → signed in → logged out),
+  coupon (available → redeemed → active → expired / cancelled), deposit, verification.
+- Example: cancel an already-cancelled coupon; redeem an expired one; log out mid-flow.
 - Pitfall: forgetting the invalid transitions — that is where most of the defects are.
 
 ### Pairwise / combinatorial
 
-When the full matrix explodes (viewport × locale × brand × profile), cover all pairs instead of all
+When the full matrix explodes (viewport × locale × variant × profile), cover all pairs instead of all
 combinations.
 
 - Use when: three or more independent dimensions with several values each.
-- the platform example: `{xs, xl} × {es, en} × {guest, player}` — pick a pair-covering subset instead of eight full runs.
+- Example: `{small, large} × {en, de} × {guest, registered-user}` — pick a pair-covering subset instead of eight full runs.
 - Say explicitly that pairwise was applied, so nobody reads the gaps as an oversight.
 
 ### Use case / scenario
 
-Walk the user journey end to end, in the order a real player performs it.
+Walk the user journey end to end, in the order a real user performs it.
 
-- Use when: the value only appears across steps — register → verify → deposit → claim bonus → play.
-- This is the technique that legitimately produces live E2E scenarios in `qa/`.
+- Use when: the value only appears across steps — sign up → verify → add to cart → pay → receive confirmation.
+- This is the technique that legitimately produces live E2E scenarios.
 
 ## Experience-based
 
 ### Error guessing
 
-Target what historically breaks in this codebase: empty CMS collections, missing translations,
+Target what historically breaks in this codebase: empty content collections, missing translations,
 slow upstream, expired tokens, double submits, back-navigation after logout, duplicated event handlers.
 
-- Feed it from `.agents/retros/**` and from closed bug issues in the same area.
+- Feed it from retros, post-mortems, and closed bug issues in the same area.
 
 ### Exploratory
 
@@ -87,7 +87,7 @@ Applied after reading the implementation, usually to decide unit-test cases.
 | Feature shape | First-choice techniques |
 | --- | --- |
 | Form with validation | Equivalence partitioning + boundary values + negative cases |
-| Status-driven UI (bonus, verification) | State transition + decision table |
+| Status-driven UI (coupon, verification) | State transition + decision table |
 | API endpoint | Partitioning on parameters + boundaries + negative auth cases + schema assertion |
 | Layout across breakpoints and locales | Pairwise + use case |
 | Bug fix | Error guessing around the fix + structure-based on the changed function |

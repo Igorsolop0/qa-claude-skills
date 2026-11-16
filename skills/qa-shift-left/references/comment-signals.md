@@ -7,26 +7,26 @@ Sources of signals:
 
 - GitHub issue comments (`gh issue view <N> --json comments`)
 - Linked PR review threads, when the change is already in flight
-- OpenSpec review notes inside the change folder
+- Review notes inside the spec or change document
 - Decisions the user states directly in the session
 
 ## When to skip
 
 Skip when there are no comments, or when every comment is automated: bot review summaries, CI status
-posts, project-field change logs. An automated comment is one with no human-authored sentence.
+posts, board-field change logs. An automated comment is one with no human-authored sentence.
 
 ## Signal types
 
 | Signal | What it looks like | How to use it |
 | --- | --- | --- |
 | AC change | "Updated AC-3", "confirmed: X is not required" | Supersedes the description; use the updated version |
-| Scope narrowing | "FE is out of scope for this issue", "backend only" | Add to `assumptions[]`; generate no scenarios for what was cut |
+| Scope narrowing | "Frontend is out of scope for this issue", "backend only" | Add to `assumptions[]`; generate no scenarios for what was cut |
 | Implementation constraint | "Must reuse the existing service", "no new collection" | Shapes `dependencies` and the level choice |
-| Design change | "Figma updated — the flow is now Y" | Re-derive the affected ACs |
-| Dependency revealed | "Blocked on #NNN", "needs the gateway change first" | Add to `risks[]` as an integration dependency |
+| Design change | "Design updated — the flow is now Y" | Re-derive the affected ACs |
+| Dependency revealed | "Blocked on #NNN", "needs the API change first" | Add to `risks[]` as an integration dependency |
 | Root cause hypothesis (bugs) | "I think the endpoint never re-fetches after save" | Carries into `feature_framing.what_changes`; shapes the RED scenario |
 | Prior fix attempt (bugs) | "PR #123 was reverted because…" | Add to `risks[]` as a regression risk for that approach |
-| Reproduction constraint (bugs) | "Only on qa", "only for verified players" | Constrains the scenario conditions; note in `assumptions[]` |
+| Reproduction constraint (bugs) | "Only on staging", "only for verified users" | Constrains the scenario conditions; note in `assumptions[]` |
 | Ambiguity resolved | Someone explains what a term means here | Update `assumptions[]` accordingly |
 
 ## Process
@@ -42,10 +42,10 @@ posts, project-field change logs. An automated comment is one with no human-auth
 ```json
 "decision_signals": [
   {
-    "source": "issue #2201 comment",
+    "source": "issue #123 comment",
     "signal_type": "scope_narrowing",
-    "text": "Backoffice UI is out of scope for this issue",
-    "carried_into": "assumptions[0], scenario_matrix (no BO UI scenarios)"
+    "text": "Admin UI is out of scope for this issue",
+    "carried_into": "assumptions[0], scenario_matrix (no admin UI scenarios)"
   }
 ]
 ```

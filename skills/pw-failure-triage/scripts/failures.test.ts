@@ -11,7 +11,7 @@ function report(tests: object[]): JSONReport {
         file: "tests/auth/phone-registration.spec.ts",
         specs: [
           {
-            title: "Registering again with a confirmed phone number @T0a1b2c3d",
+            title: "Registering again with a confirmed phone number @C1234",
             file: "tests/auth/phone-registration.spec.ts",
             line: 104,
             tags: ["@regression", "@auth"],
@@ -55,7 +55,7 @@ describe("readFailures", () => {
 
     expect(failures).toEqual([
       {
-        title: "Registering again with a confirmed phone number @T0a1b2c3d",
+        title: "Registering again with a confirmed phone number @C1234",
         file: "tests/auth/phone-registration.spec.ts",
         line: 104,
         project: "web",
@@ -71,7 +71,7 @@ describe("readFailures", () => {
         ],
       },
       {
-        title: "Registering again with a confirmed phone number @T0a1b2c3d",
+        title: "Registering again with a confirmed phone number @C1234",
         file: "tests/auth/phone-registration.spec.ts",
         line: 104,
         project: "web-webkit",

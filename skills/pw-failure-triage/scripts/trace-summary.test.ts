@@ -34,18 +34,18 @@ const failingStepEvents = [
     type: "before",
     callId: "expect@4",
     parentId: "test.step@2",
-    title: "BFF should send a code to the number",
+    title: "API should send a code to the number",
     startTime: 22,
   },
   {
     type: "after",
     callId: "expect@4",
-    error: { message: "Error: BFF should send a code\n\n\u001b[2mexpect(\u001b[22mreceived).toBe(expected)" },
+    error: { message: "Error: API should send a code\n\n\u001b[2mexpect(\u001b[22mreceived).toBe(expected)" },
   },
-  { type: "after", callId: "test.step@2", error: { message: "Error: BFF should send a code" } },
+  { type: "after", callId: "test.step@2", error: { message: "Error: API should send a code" } },
   {
     type: "error",
-    message: "Error: BFF should send a code\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m503\u001b[39m",
+    message: "Error: API should send a code\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m503\u001b[39m",
     stack: [{ file: "/repo/e2e/tests/auth/phone-registration.spec.ts", line: 60, column: 69 }],
   },
 ];
@@ -56,8 +56,8 @@ describe("summarizeTrace", () => {
 
     const summary = summarizeTrace(dir);
 
-    expect(summary.failedSteps).toEqual(["Request a registration code", "BFF should send a code to the number"]);
-    expect(summary.error).toBe("Error: BFF should send a code\n\nExpected: 200\nReceived: 503");
+    expect(summary.failedSteps).toEqual(["Request a registration code", "API should send a code to the number"]);
+    expect(summary.error).toBe("Error: API should send a code\n\nExpected: 200\nReceived: 503");
     expect(summary.location).toBe("tests/auth/phone-registration.spec.ts:60");
   });
 

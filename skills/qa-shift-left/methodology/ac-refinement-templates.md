@@ -21,20 +21,20 @@ When <action> as `guest`
 Then <observable outcome for a guest>
 
 Given <preconditions>
-When the same action is performed as `player-default`
+When the same action is performed as `registered-user`
 Then <different observable outcome>
 ```
 
-Profile ids come from `gateway/mock/profiles/<brand>/profiles.yaml`.
+Profile ids come from the project's fixtures, roles, or auth model.
 
 ## Splitting a non-atomic AC
 
-Original: "A player can claim, cancel, and re-claim a bonus."
+Original: "A customer can redeem, cancel, and re-redeem a coupon."
 
 ```
-AC-1a: Given <...>, When the player claims the bonus, Then <...>
-AC-1b: Given <...>, When the player cancels an active bonus, Then <...>
-AC-1c: Given <...>, When the player re-claims after cancelling, Then <...>
+AC-1a: Given <...>, When the customer redeems the coupon, Then <...>
+AC-1b: Given <...>, When the customer cancels an active coupon, Then <...>
+AC-1c: Given <...>, When the customer re-redeems after cancelling, Then <...>
 ```
 
 ## Adding measurability
@@ -43,29 +43,29 @@ Original: "The list should load quickly."
 
 ```
 Given <load profile>
-When the player opens <route>
+When the user opens <route>
 Then the list renders within <X> ms at <percentile>
 ```
 
 ## Adding the missing failure mode
 
-Original: "A player can claim a bonus."
+Original: "A customer can redeem a coupon."
 
 ```
-Given a bonus that expired
-When the player opens the bonus card
-Then the claim control is disabled and shows <exact copy>
+Given a coupon that expired
+When the customer opens the coupon card
+Then the redeem control is disabled and shows <exact copy>
 ```
 
-## Brand applicability
+## Variant applicability
 
-If behavior differs per brand, say so in the rewrite rather than forking the AC:
+If behavior differs per variant (tenant, locale, platform), say so in the rewrite rather than forking the AC:
 
 ```
-Given brand `client`
+Given variant `<A>`
 When <action>
 Then <outcome>
-(For `brand-b` the same trigger produces <outcome>; capability is shared, the copy differs.)
+(For variant `<B>` the same trigger produces <outcome>; the capability is shared, the copy differs.)
 ```
 
 ## How to present rewrites

@@ -14,7 +14,7 @@
  * the fixtures that create data or set auth, and the config). `--spec` is always the one spec to run,
  * and `--grep` (taken literally) must select exactly one test in `--project`. `--new ''` deletes
  * `--old`. `--cmd` is the project's Playwright command; `--env` turns reporting off for the run
- * (for example `--env TESTOMATIO=`).
+ * (for example `--env REPORTER_TOKEN=` with the variable your reporter reads).
  *
  * Before mutating, the original bytes are saved to `test-results/mut-<id>/original.<name>` and the
  * mutated bytes to `mutated.<name>` next to it, so a hard-killed run can be restored safely by hand.
