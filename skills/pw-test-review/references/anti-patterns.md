@@ -8,6 +8,7 @@ Walk through the test code and flag the following. Categorize each finding by pr
 - [High](#high) — strong code smell
 - [Medium](#medium) — worth fixing but not urgent
 - [Low](#low) — nice-to-have / cosmetic
+- [Project structure](#project-structure) — only when the project uses the default structure
 - [Context-aware priority bumps](#context-aware-priority-bumps)
 
 ---
@@ -202,6 +203,59 @@ Walk through the test code and flag the following. Categorize each finding by pr
   hides nothing (the deletion test: if inlining the method loses nothing, it should not exist).
 - **Fix:** delete it and use the getter, or make it carry a whole user intent: the steps of one action
   plus the wait for its outcome (`signInAs(account)`).
+
+## Project structure
+
+Check these only when the project's `AGENTS.md` (or the code) shows the default structure of
+`pw-project-bootstrap` and `e2e-writer`: an `App` container from fixtures, page objects in `src/ui/`,
+`test`/`expect` from `@/fixtures`, tags from `src/config/tags.ts`. A project with another structure
+is reviewed against its own. Most of these are also ESLint errors there: when you find one, say
+that `npm run lint` would have caught it, and check that CI runs lint.
+
+### 29. A spec acts on a locator (Medium)
+
+- **Why:** `await app.registerPage.submitButton.click()` in a spec spreads the page's steps over
+  every spec that needs them; when the screen changes, every one of them changes.
+- **Fix:** a page object method named after the user's intent (`createWorkspace(account)`). A one-off
+  assertion on a page object's locator in a spec is fine.
+
+### 30. A spec builds its own page objects (Medium)
+
+- **Why:** `new RegisterPage(page)` or `createApp(page)` in a spec bypasses the fixture that signs the
+  browser in, so a test can run as the wrong user, and a second page object of the same page drifts
+  from the one in `App`.
+- **Fix:** take `app`, `<role>App` or `shared<Role>App` from the test arguments.
+
+### 31. `test` / `expect` imported from `@playwright/test` in a spec (Medium)
+
+- **Why:** the spec loses the project's fixtures and its schema matchers; `expect(body).toMatchSchema`
+  then does not exist, and a future fixture is silently missing.
+- **Fix:** `import { expect, test } from '@/fixtures'`.
+
+### 32. Data created in the steps of a test instead of a fixture (Medium)
+
+- **Why:** setup steps at the top of a test mix the precondition with the behaviour under test: a red
+  run then cannot say whether the product or the setup broke, and clean-up is skipped when the test
+  fails halfway.
+- **Fix:** a precondition fixture that creates the data through the API and deletes it after the test.
+
+### 33. A page object action without `@step` (Low)
+
+- **Why:** the report and the trace show raw clicks instead of `RegisterPage: create workspace`, and a
+  failure points into the page object instead of the spec line that called it.
+- **Fix:** `@step` on every public async method. A read polled by `expect.poll` may stay without it.
+
+### 34. `@regression` or a raw tag string (Low; Medium when a CI job selects by that tag)
+
+- **Why:** `@regression` selects nothing (regression is every test) and drifts from what runs; a typo
+  in a raw `'@smok'` drops the test out of a `--grep` run without any error.
+- **Fix:** `tag: [Tag.smoke, Tag.<domain>]` from `src/config/tags.ts`.
+
+### 35. A base class that wraps Playwright for page objects (Medium)
+
+- **Why:** a `BasePage` with `click`/`fill`/`waitFor` helpers hides Playwright's own waiting and error
+  messages, and every page inherits behaviour it does not need.
+- **Fix:** plain classes that take `page`; shared parts of the screen become components in `App`.
 
 ---
 

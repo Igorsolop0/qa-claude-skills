@@ -1,33 +1,49 @@
 # Templates
 
-Adapt names to the interview answers. Match the repository's formatter and package manager.
-
 ## Folder tree (API and browser, inside a repository)
 
 ```
 qa/
   .env.example
   .gitignore
-  CLAUDE.md
+  AGENTS.md                 # the project's rules, profile and skill routing: every agent reads it
+  CLAUDE.md                 # one line, `@AGENTS.md`: Claude Code reads this file and imports the other
   README.md
+  eslint.config.mjs
   package.json
   playwright.config.ts
   tsconfig.json
   scripts/generate-api-types.mjs
   src/
     api/base-client.ts
-    fixtures/index.ts
+    config/tags.ts
+    fixtures/api.fixture.ts
+    fixtures/index.ts         # merges the fixture files into the one `test`
     matchers/to-match-schema.ts
     types/api.d.ts            # generated, committed
     types/api-schemas.json    # generated, committed
+    utils/unique.ts
+    utils/unique.test.ts
   tests/
     _setup/auth.setup.ts
     api/health/health.spec.ts
 ```
 
 Do not create empty folders: git does not keep them. `tests/api/<domain>/` appears with its first
-spec, `tests/e2e/` with the first browser test. In a separate repository the same tree is the
-repository root (no `qa/` level).
+spec, `tests/e2e/`, `src/ui/` and `test-data/` with the first browser test. In a separate repository
+the same tree is the repository root (no `qa/` level).
+
+What lives where, and what may not:
+
+| Path | Holds |
+|---|---|
+| `tests/` | `*.spec.ts` only, plus `_setup/`. No helpers, page objects, data or fixtures. |
+| `src/api/` | HTTP clients. |
+| `src/ui/` | Page objects (`pages/`, `components/`) and the `App` container (`e2e-writer` adds them). |
+| `src/fixtures/` | Fixture wiring: one `<domain>.fixture.ts` per domain, merged in `index.ts`. |
+| `src/utils/` | Pure functions with no `page`, `request` or `test`, each with a `*.test.ts` next to it. |
+| `src/config/` | Tags, addresses. |
+| `test-data/` | Builders and presets of input data. |
 
 ## Dev dependencies
 
@@ -35,7 +51,7 @@ Install exactly these, with these ranges. Unpinned installs break: `openapi-type
 TypeScript 5 and crashes on TypeScript 7.
 
 ```
-npm install -D @playwright/test typescript@^5 openapi-typescript@^7 yaml@^2 dotenv@^17 ajv@^8 ajv-formats@^3 @types/node@<major>
+npm install -D @playwright/test typescript@^5 openapi-typescript@^7 yaml@^2 dotenv@^17 ajv@^8 ajv-formats@^3 @types/node@<major> eslint@^10 typescript-eslint@^8 eslint-plugin-playwright@^2
 ```
 
 `<major>` is the first number of `node --version` (Node 24 gives `@types/node@24`). Leave out
@@ -43,6 +59,9 @@ npm install -D @playwright/test typescript@^5 openapi-typescript@^7 yaml@^2 dote
 `npm ci` in CI needs it.
 
 ## `tsconfig.json`
+
+`paths` gives the `@/…` and `@test-data/…` imports. Playwright and `tsc` both read them; no
+`baseUrl` is needed.
 
 ```json
 {
@@ -55,9 +74,13 @@ npm install -D @playwright/test typescript@^5 openapi-typescript@^7 yaml@^2 dote
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@test-data/*": ["./test-data/*"]
+    }
   },
-  "include": ["playwright.config.ts", "src", "tests"]
+  "include": ["playwright.config.ts", "src", "test-data", "tests"]
 }
 ```
 
@@ -77,7 +100,7 @@ blob-report/
 ```ts
 import fs from 'node:fs';
 import path from 'node:path';
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig } from '@playwright/test';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: path.join(__dirname, '.env'), quiet: true });
@@ -95,7 +118,7 @@ const apiDomains = fs
   .map((entry) => entry.name);
 // Folders whose tests need no login: they must stay green when an account is missing.
 const noLogin = new Set(['health']);
-const e2eDir = path.join(__dirname, 'tests/e2e');
+const utilsDir = path.join(__dirname, 'src/utils');
 
 export default defineConfig({
   testDir: './tests',
@@ -115,31 +138,18 @@ export default defineConfig({
       testDir: `./tests/api/${domain}`,
       dependencies: noLogin.has(domain) ? [] : ['setup'],
     })),
-    ...(fs.existsSync(e2eDir)
-      ? [
-          {
-            name: 'browser-setup',
-            testDir: './tests/_setup',
-            testMatch: /.*\.login\.ts/,
-            use: { ...devices['Desktop Chrome'] },
-            dependencies: ['setup'],
-          },
-          {
-            name: 'e2e',
-            testDir: './tests/e2e',
-            use: { ...devices['Desktop Chrome'] },
-            dependencies: ['browser-setup'],
-          },
-        ]
-      : []),
+    // Unit tests of the pure functions in src/utils/, next to the code (`*.test.ts`). No browser, no API.
+    ...(fs.existsSync(utilsDir) ? [{ name: 'unit', testDir: './src/utils', testMatch: /.*\.test\.ts/ }] : []),
   ],
 });
 ```
 
-Leave out the `setup` project and `dependencies` when there is no login. Leave out the two browser
-projects for an API-only project. They appear by themselves with the first browser test, which
-`e2e-writer` adds together with the browser login. `baseURL` stays the API address; pages are opened
-by full address from `WEB_URL`.
+Leave out the `setup` project and `dependencies` when there is no login. The `e2e` project appears
+with the first browser test, which `e2e-writer` adds. `baseURL` stays the API address; pages are
+opened by full address from `WEB_URL` (or `BASE_URL` when the web app and the API share one).
+
+The `unit` project runs the `*.test.ts` files next to the pure functions in `src/utils/`: Playwright's
+own runner, so they need no extra tool and the `@/` imports work. `tests/` never holds a `*.test.ts`.
 
 The config check covers only what every run needs (`BASE_URL`). Role credentials are checked inside
 the setup test of that role, with the same message format: `Missing in .env: TESTER_EMAIL,
@@ -153,9 +163,11 @@ Playwright reports them as "did not run". The health project is the exception. S
   "scripts": {
     "test": "playwright test",
     "test:api": "playwright test --project=api-*",
+    "test:unit": "playwright test --project=unit",
     "test:smoke": "playwright test --grep @smoke",
     "report": "playwright show-report",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "types:api": "node scripts/generate-api-types.mjs"
   }
 }
@@ -322,7 +334,47 @@ The matchers are synchronous on purpose: an async matcher without `await` passes
 No API description: drop the two `../types` imports and `ajv.addSchema`, make `SchemaName` `never`;
 tests then pass schema objects written from real responses.
 
-## `src/fixtures/index.ts`
+## `src/config/tags.ts`
+
+```ts
+/**
+ * Every tag a test may carry: `tag: [Tag.smoke, Tag.auth]`, never a raw `'@…'` string. Add a new tag here
+ * first. Regression is every test, so there is no regression tag: a run without `--grep` is the regression run.
+ */
+export const Tag = {
+  smoke: '@smoke',
+  auth: '@auth',
+} as const;
+```
+
+Start with `smoke` and the tag of the first domain. A spec writes `tag: [Tag.smoke, Tag.users]`;
+`--grep @smoke` still selects by the string. A typo in a raw `'@smok'` would drop the test out of a
+run without any error; a typo in `Tag.smok` fails the type check.
+
+## `src/utils/unique.ts` and its unit test
+
+```ts
+import { randomUUID } from 'node:crypto';
+
+/** A value that does not repeat between runs and parallel workers: `unique('ticket')`. */
+export function unique(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${randomUUID().slice(0, 4)}`;
+}
+```
+
+```ts
+import { expect, test } from '@playwright/test';
+import { unique } from './unique';
+
+test('unique keeps the prefix and never repeats', () => {
+  const values = new Set(Array.from({ length: 50 }, () => unique('ticket')));
+
+  expect(values.size).toBe(50);
+  for (const value of values) expect(value).toMatch(/^ticket-[a-z0-9]+-[a-f0-9]{4}$/);
+});
+```
+
+## `src/fixtures/api.fixture.ts`
 
 The code below is written for a sample API with roles `admin` and `tester`. `Role`, the `<role>Api`
 fixtures and, in the auth setup, the top block and the role lines are what you change for the
@@ -330,12 +382,10 @@ real product; an API without roles keeps only `api` and one authorised client. L
 exact names: `test`, `expect`, `Schemas`, `Body`, `unique`, `clientFor`, `api`, `<role>Api`.
 
 ```ts
-import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { expect as baseExpect, test as base, type APIRequestContext } from '@playwright/test';
+import { test as base, type APIRequestContext } from '@playwright/test';
 import { BaseClient } from '../api/base-client';
-import { toMatchArrayOf, toMatchSchema } from '../matchers/to-match-schema';
 import type { components, paths } from '../types/api';
 
 /** Body types from the API description: `const ticket: Schemas['Ticket'] = await response.json()`. */
@@ -350,10 +400,6 @@ export type Body<Path extends keyof paths, Method extends keyof paths[Path]> = p
 }
   ? Json
   : never;
-
-/** A value that does not repeat between runs and parallel workers: `unique('ticket')`. */
-export const unique = (prefix: string): string =>
-  `${prefix}-${Date.now().toString(36)}-${randomUUID().slice(0, 4)}`;
 
 export type Role = 'admin' | 'tester';
 
@@ -394,19 +440,41 @@ export const test = base.extend<ApiFixtures>({
   adminApi: async ({ request }, use) => use(clientFor(request, 'admin')),
   testerApi: async ({ request }, use) => use(clientFor(request, 'tester')),
 });
+```
+
+## `src/fixtures/index.ts`
+
+The one `test` and `expect` every spec imports. A new domain gets its own `<domain>.fixture.ts`
+(extending `api.fixture.ts` or another fixture it needs) and one more argument to `mergeTests`.
+
+```ts
+/**
+ * The one `test` and `expect` every spec imports: `import { expect, test } from '@/fixtures'`.
+ * Each domain keeps its fixtures in its own `<domain>.fixture.ts`; this file only merges them. Playwright
+ * sets a fixture up only when a test asks for it, so merging costs nothing for the tests that do not.
+ */
+import { expect as baseExpect, mergeTests } from '@playwright/test';
+import { toMatchArrayOf, toMatchSchema } from '../matchers/to-match-schema';
+import { test as apiTest } from './api.fixture';
+
+export const test = mergeTests(apiTest);
 
 export const expect = baseExpect.extend({ toMatchSchema, toMatchArrayOf });
+
+export { type AuthState, authFile, type Body, clientFor, type Role, readAuthState, type Schemas } from './api.fixture';
+export { unique } from '../utils/unique';
 ```
 
 ## How a test uses the pieces
 
-Not generated by the bootstrap; this is the shape the writer skill follows. Write it into
-`CLAUDE.md` as the convention.
+Not generated by the bootstrap; this is the shape the writer skills follow. Write it into
+`AGENTS.md` as the convention.
 
 ```ts
-import { clientFor, expect, test, type Schemas } from '../../../src/fixtures';
+import { Tag } from '@/config/tags';
+import { expect, type Schemas, test } from '@/fixtures';
 
-test('200: returns the ticket in the documented shape', { tag: '@smoke' }, async ({ adminApi }) => {
+test('200: returns the ticket in the documented shape', { tag: [Tag.smoke, Tag.tickets] }, async ({ adminApi, ticket }) => {
   const response = await adminApi.send('GET', `/tickets/${ticket.id}`);
 
   expect(response.status()).toBe(200);
@@ -416,23 +484,26 @@ test('200: returns the ticket in the documented shape', { tag: '@smoke' }, async
 });
 ```
 
+- `ticket` is a precondition fixture (`src/fixtures/tickets.fixture.ts`): it creates the ticket
+  through the API before the test and deletes it after. Data a test needs is a fixture, not steps at
+  the top of the test.
 - Type the body with `Schemas[...]`. `expect(await response.json())` without a type does not offer
   the schema matchers.
 - Lists: `expect(body).toMatchArrayOf('Ticket')`.
 - Request bodies: `const data: Body<'/tickets', 'post'> = { ... }`, so a wrong field name fails the
   type check.
 - Names that must not collide: `unique('ticket')`.
-- Data for a group of tests: `test.beforeAll(async ({ request }) => { const admin = clientFor(request, 'admin'); ... })`.
-  Role fixtures do not exist in `beforeAll` / `afterAll`.
+- Imports through `@/…` and `@test-data/…`; `test` and `expect` only from `@/fixtures`.
 
 ## `tests/api/health/health.spec.ts`
 
 ```ts
-import { expect, test } from '@playwright/test';
+import { Tag } from '@/config/tags';
+import { expect, test } from '@/fixtures';
 
-test('service answers', { tag: '@smoke' }, async ({ request }) => {
-  // No leading slash: the path is added to BASE_URL, including its own path.
-  const response = await request.get('<path from the interview, without the leading slash>');
+test('service answers', { tag: [Tag.smoke] }, async ({ api }) => {
+  // No leading slash needed: the client adds the path to BASE_URL, including its own path.
+  const response = await api.send('GET', '<path from the interview>');
 
   expect(response.status()).toBe(200);
 });
@@ -441,16 +512,16 @@ test('service answers', { tag: '@smoke' }, async ({ request }) => {
 ## Auth setup: `tests/_setup/auth.setup.ts`
 
 Template for token login (a login endpoint returns a token). Adapt the block at the top and the
-role lines at the bottom; leave the helpers as they are. All five paths were exercised: first login,
-session reuse, stale token, refused saved credentials, login limit (429).
+role lines at the bottom; leave the helpers as they are. Exercised paths: first login, session
+reuse, stale token, refused saved credentials, login limit (429), self-registration.
 
 ```ts
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { expect, test as setup, type APIRequestContext, type APIResponse } from '@playwright/test';
-import { BaseClient } from '../../src/api/base-client';
-import { authFile, readAuthState, type AuthState, type Role } from '../../src/fixtures';
+import type { APIRequestContext, APIResponse } from '@playwright/test';
+import { BaseClient } from '@/api/base-client';
+import { type AuthState, authFile, expect, type Role, readAuthState, test as setup } from '@/fixtures';
 
 // ---- Adapt this block to the API description. Nothing below it is project-specific. ----
 const LOGIN_PATH = '/auth/login';
@@ -500,12 +571,15 @@ async function useExistingAccount(request: APIRequestContext, role: Role): Promi
   save(role, { token: tokenFrom(await response.json()), email });
 }
 
-/** A role without an account: `creator` makes one through the API, once; later runs reuse it. */
+/**
+ * A role without an account: it is created through the API once, and later runs reuse it. `creator` is
+ * the role whose token makes the call (an admin adds a tester); leave it out when anyone may register.
+ */
 async function useCreatedAccount(
   request: APIRequestContext,
   role: Role,
-  creator: Role,
   create: (client: BaseClient, email: string, password: string) => Promise<APIResponse>,
+  creator?: Role,
 ): Promise<void> {
   const saved = readAuthState(role);
   if (await sessionWorks(request, saved)) return;
@@ -519,10 +593,13 @@ async function useCreatedAccount(
     }
   }
 
-  const creatorToken = readAuthState(creator)?.token;
-  expect(creatorToken, `"${role}" is created by "${creator}": the ${creator} login must pass first`).toBeTruthy();
+  const creatorToken = creator ? readAuthState(creator)?.token : undefined;
+  if (creator) {
+    expect(creatorToken, `"${role}" is created by "${creator}": the ${creator} login must pass first`).toBeTruthy();
+  }
 
-  const email = `qa-${role}-${Date.now()}@example.test`;
+  // `qa-pw-` marks accounts that tests created, so they can be found on a shared environment.
+  const email = `qa-pw-${role}-${Date.now()}@example.test`;
   const password = randomUUID();
   const created = await create(new BaseClient(request, creatorToken), email, password);
   expect(created.ok(), `Creating the ${role} account answered ${created.status()}: ${await created.text()}`).toBe(true);
@@ -539,10 +616,21 @@ setup('admin: log in', async ({ request }) => {
 });
 
 setup('tester: created by admin', async ({ request }) => {
-  await useCreatedAccount(request, 'tester', 'admin', (admin, email, password) =>
-    admin.send('POST', '/users', { data: { email, password, name: 'QA tester (autotests)', role: 'tester' } }),
+  await useCreatedAccount(
+    request,
+    'tester',
+    (admin, email, password) =>
+      admin.send('POST', '/users', { data: { email, password, name: 'QA tester (autotests)', role: 'tester' } }),
+    'admin',
   );
 });
+
+// Anyone may register: no creator.
+// setup('member: registers itself', async ({ request }) => {
+//   await useCreatedAccount(request, 'member', (client, email, password) =>
+//     client.send('POST', '/auth/register', { data: { email, password, name: 'QA member (autotests)' } }),
+//   );
+// });
 ```
 
 Rules for every login type:
@@ -553,7 +641,117 @@ Rules for every login type:
 - Cookie login: replace the token handling with
   `await request.storageState({ path: authFile(role) })` and build clients from that state.
 - Static API key: no setup project; the key is read from env in `clientFor`.
-- Self-registered users: `useCreatedAccount` with the registration call and no creator token.
+- Self-registered users: `useCreatedAccount` with the registration call and no creator.
+- A setup test asserts inside its helpers; `eslint.config.mjs` turns `expect-expect` off for `tests/_setup/`.
+
+## `eslint.config.mjs`
+
+The rules a reviewer would otherwise repeat in every pull request. `npm run lint` runs them, CI runs
+them on every push, and the writer skills run them before they say "done". The page object rules
+apply as soon as `e2e-writer` adds `src/ui/`; until then they find nothing.
+
+```js
+// Playwright rules and the architecture rules of this project. What each rule protects: AGENTS.md.
+import { defineConfig } from 'eslint/config';
+import playwright from 'eslint-plugin-playwright';
+import tseslint from 'typescript-eslint';
+
+/** Specs get page objects from the `app` fixtures and `test`/`expect` from `@/fixtures`. */
+const SPEC_IMPORTS = {
+  paths: [
+    {
+      name: '@playwright/test',
+      importNames: ['test', 'expect'],
+      allowTypeImports: true,
+      message: 'Import `test` and `expect` from `@/fixtures`.',
+    },
+    {
+      name: '@/ui/app',
+      importNames: ['createApp', 'App'],
+      allowTypeImports: true,
+      message: '`createApp` is for fixtures only: take `app`, `<role>App` or `shared<Role>App` from the test arguments.',
+    },
+  ],
+  patterns: [
+    {
+      group: ['@/ui/pages/*', '@/ui/components/*'],
+      allowTypeImports: true,
+      // The copy a page object checks (`REGISTER_COPY`) is data a spec may assert against.
+      allowImportNamePattern: '_COPY$',
+      message: 'Take the page object from the `app` fixture; do not construct it in a spec.',
+    },
+    {
+      group: ['@/fixtures/*'],
+      importNames: ['test', 'expect'],
+      allowTypeImports: true,
+      message: 'Import `test` and `expect` from `@/fixtures`, not from one fixture file.',
+    },
+    { group: ['**/src/**', '**/src'], message: 'Import from `@/…` (tsconfig alias), not a relative src path.' },
+    { group: ['**/test-data/**', '**/test-data'], message: 'Import from `@test-data/…`, not a relative path.' },
+  ],
+};
+
+/** A spec acts through page object methods, never on a locator. */
+const LOCATOR_ACTION = {
+  selector:
+    'CallExpression[callee.property.name=/^(click|dblclick|fill|press|pressSequentially|tap|check|uncheck|selectOption|setInputFiles|hover|type|clear)$/]',
+  message: 'Act through a page object method, not on a locator in the spec.',
+};
+
+/** Every public async method of a page object is a `@step`, so the report reads as user actions. */
+const UNSTEPPED_METHOD = {
+  selector:
+    'ClassBody > MethodDefinition[kind="method"][static=false][value.async=true][key.type="Identifier"][decorators.length=0]',
+  message: 'Put `@step` on a public async page object method (a read polled by `expect.poll` may opt out).',
+};
+
+export default defineConfig(
+  { ignores: ['.auth/**', 'node_modules/**', 'playwright-report/**', 'test-results/**', 'src/types/**'] },
+  {
+    files: ['**/*.ts'],
+    languageOptions: { parser: tseslint.parser },
+    plugins: { '@typescript-eslint': tseslint.plugin },
+    linterOptions: { reportUnusedDisableDirectives: 'error' },
+  },
+  {
+    files: ['tests/**/*.ts'],
+    ...playwright.configs['flat/recommended'],
+    rules: {
+      ...playwright.configs['flat/recommended'].rules,
+      // `expect*` page object methods count as assertions.
+      'playwright/expect-expect': ['error', { assertFunctionPatterns: ['^expect[A-Z]'] }],
+      'playwright/prefer-web-first-assertions': 'error',
+      // Tags come from the `Tag` constants, which this rule cannot read.
+      'playwright/valid-test-tags': 'off',
+      '@typescript-eslint/no-restricted-imports': ['error', SPEC_IMPORTS],
+    },
+  },
+  {
+    // A setup test asserts inside its helpers (`useCreatedAccount`), which the rule cannot see.
+    files: ['tests/_setup/**'],
+    rules: { 'playwright/expect-expect': 'off' },
+  },
+  {
+    files: ['tests/**/*.spec.ts'],
+    rules: { 'no-restricted-syntax': ['error', LOCATOR_ACTION] },
+  },
+  {
+    files: ['src/ui/pages/**/*.ts', 'src/ui/components/**/*.ts'],
+    rules: { 'no-restricted-syntax': ['error', UNSTEPPED_METHOD] },
+  },
+);
+```
+
+What the rules catch, in the words to use with a person new to ESLint:
+
+| Rule | Catches |
+|---|---|
+| `playwright/*` recommended | a missing `await`, `waitForTimeout`, `networkidle`, `{ force: true }`, `isVisible()` where a web-first assertion waits, a test with no assertion |
+| `test` / `expect` from `@/fixtures` | a spec that misses the project's matchers and fixtures |
+| page objects and `createApp` from the fixtures | a spec that builds its own page objects |
+| no action on a locator in a spec | `.click()` / `.fill()` in a spec: actions belong to page objects |
+| `@` aliases | `../../../src/...` imports |
+| `@step` on public async page object methods | a page object action that would not show in the report |
 
 ## GitHub Actions workflow
 
@@ -569,6 +767,9 @@ on:
       grep:
         description: 'Tag or title filter. Empty runs all.'
         default: '@smoke'
+  # Only when "on every push to the main branch" was chosen:
+  push:
+    branches: [main]
 
 jobs:
   test:
@@ -578,7 +779,9 @@ jobs:
       run:
         working-directory: qa
     env:
-      BASE_URL: ${{ secrets.QA_BASE_URL }}
+      # Addresses are not secrets: write them here, so a new repository runs without any setting.
+      BASE_URL: <base URL from the interview>
+      # Credentials are: one secret pair per role whose account exists.
       ADMIN_EMAIL: ${{ secrets.QA_ADMIN_EMAIL }}
       ADMIN_PASSWORD: ${{ secrets.QA_ADMIN_PASSWORD }}
       INPUT_PROJECT: ${{ inputs.project }}
@@ -589,6 +792,8 @@ jobs:
         with:
           node-version: lts/*
       - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
       - run: npx playwright install --with-deps chromium
       - run: |
           args=()
@@ -603,17 +808,28 @@ jobs:
           retention-days: 14
 ```
 
-Inputs go through `env`, never straight into the shell line. Add `WEB_URL` when browser tests exist. One secret pair per role. In a
-separate repository remove `defaults.run.working-directory` and use `path: playwright-report`.
-If `BASE_URL` is `localhost` or behind a VPN, say in the README that hosted CI cannot reach it. Drop the browser install step for an
-API-only project. Add `schedule` only when nightly was chosen. For other CI providers, keep the
-same shape: manual trigger, two inputs, report as an artifact.
+Inputs go through `env`, never straight into the shell line; on a push they are empty, so the push
+runs every test. Add `WEB_URL` when the web app has another address. Roles that tests create
+themselves need no secret. In a separate repository remove `defaults.run.working-directory` and use
+`path: playwright-report`. If `BASE_URL` is `localhost` or behind a VPN, say in the README that
+hosted CI cannot reach it. Drop the browser install step for an API-only project. Add `schedule`
+only when nightly was chosen. For other CI providers, keep the same shape: manual trigger, two
+inputs, type check, lint, tests, report as an artifact.
 
-## `CLAUDE.md` in the test folder
+## `AGENTS.md` and `CLAUDE.md` in the test folder
 
-Two parts. **Setup** records the interview so later skills do not ask again. **Project profile**
-records what is particular about this product; it is the only place where project-specific rules
-live. The skills stay universal and read this file first; they add to it, never to themselves.
+`AGENTS.md` is the one file with the project's rules: Claude Code, Cursor and Codex all read it.
+`CLAUDE.md` holds a single line, so Claude Code loads `AGENTS.md` through it:
+
+```md
+@AGENTS.md
+```
+
+`AGENTS.md` has four parts. **Setup** records the interview so later skills do not ask again.
+**Project profile** records what is particular about this product; it is the only place where
+project-specific rules live. **Test conventions** say how tests are written here. **Skills** says
+which skill does which job. The skills stay universal and read this file first; they add to it,
+never to themselves.
 
 Fill the profile only with what you observed in the API description, the codebase or a real
 response. Leave a line out rather than guess. Mark where each fact came from.
@@ -625,12 +841,13 @@ response. Leave a line out rather than guess. Mark where each fact came from.
 - Run commands and Claude Code from this folder.
 - Tests: <API and browser | API only>. Domains live in `tests/api/<domain>/`; a new folder is a
   new project. First domain planned: <domain>.
-- Tags: `@smoke`, `@regression`.
+- Tags: from `src/config/tags.ts` only (`tag: [Tag.smoke, Tag.<domain>]`). Regression is every test,
+  so there is no regression tag.
 - API description: `OPENAPI_SOURCE`, regenerate types and schemas with `npm run types:api`.
 - Login: <type and endpoint>. Roles: <role (where its account comes from)>, ... State in `.auth/`.
 - Environment: <test | shared | close to production>. <what tests may change>
 - Secrets live in `.env` only.
-- Browser login: not set up yet. `e2e-writer` adds it with the first browser test.
+- Browser: not set up yet. `e2e-writer` adds it with the first browser test.
 
 ## Project profile
 - Product: <one line: what it is, how accounts or tenants are separated>. (<source>)
@@ -643,9 +860,25 @@ response. Leave a line out rather than guess. Mark where each fact came from.
 - Open questions: <what the description leaves unsaid>.
 
 ## Test conventions
-- Import from `src/fixtures`: `test`, `expect`, `Schemas`, `Body`, `unique`, `clientFor`.
+- `tests/` holds specs only. Clients in `src/api/`, fixtures in `src/fixtures/<domain>.fixture.ts`
+  (merged in `index.ts`), pure functions with unit tests in `src/utils/`, input data in `test-data/`.
+- Import `test`, `expect`, `Schemas`, `Body`, `unique`, `clientFor` from `@/fixtures`; `Tag` from
+  `@/config/tags`. No relative path into `src/`.
+- Data a test needs before it starts comes from a fixture that creates and deletes it.
 - Order of checks: status, schema, values.
+- Before saying "done": `npm run typecheck`, `npm run lint`, the new tests green, each new test
+  shown to fail once.
 - <the usage example from "How a test uses the pieces", with this product's names>
+
+## Skills
+| Job | Skill |
+|---|---|
+| Tests for one API endpoint | `api-contract-writer` |
+| A browser test for one scenario, with its page objects | `e2e-writer` |
+| Review API tests before a pull request | `api-contract-reviewer` |
+| Review browser tests, prove they can fail (mutation check) | `pw-test-review` |
+| A red run: what broke and whose fault it is | `pw-failure-triage` |
+| A test plan for a feature before it is built | `qa-shift-left` |
 ```
 
 `<source>` is one of: description, codebase, real response, user. Write a line only for what you
@@ -657,12 +890,18 @@ Short, for a person who has never run Playwright. Sections in this order:
 
 1. First run: `npm install`, how to open the hidden `.env` (`code .env`), what to put in it.
 2. Commands. Use only forms that work in every shell: `npm test`, `npm run test:api`,
-   `npm run test:smoke`, `npx playwright test --project=api-users`, `npm run report`,
-   `npm run types:api`. A wildcard typed by hand needs quotes: `--project="api-*"`.
+   `npm run test:smoke`, `npm run test:unit`, `npx playwright test --project=api-users`,
+   `npm run report`, `npm run typecheck`, `npm run lint`, `npm run types:api`. A wildcard typed by
+   hand needs quotes: `--project="api-*"`.
 3. Reading a red run: the first line of the error is the cause; "did not run" means setup failed,
    read the setup error first; `Missing in .env: ...` names what to fill.
 4. Login problems: delete the `.auth/` folder and run again.
-5. CI: where the secrets go (GitHub: Settings → Secrets and variables → Actions → New repository
-   secret), their names, and whether CI can reach the environment.
-6. Next step: call `api-contract-writer` with an endpoint, or `e2e-writer` with a scenario.
-
+5. ESLint in two sentences: it reads the code without running it and stops a change that breaks
+   the rules in `eslint.config.mjs` (no `waitForTimeout`, no clicks in specs, imports through
+   `@/fixtures`). `npm run lint` shows the same as CI.
+6. CI: what triggers it, where secrets go if any role needs one (GitHub: Settings → Secrets and
+   variables → Actions → New repository secret), their names, and whether CI can reach the
+   environment.
+7. Publishing the project on GitHub (a separate repository): `gh auth login`, then
+   `gh repo create <name> --private --source . --push`; the push starts the CI run.
+8. Next step: call `api-contract-writer` with an endpoint, or `e2e-writer` with a scenario.

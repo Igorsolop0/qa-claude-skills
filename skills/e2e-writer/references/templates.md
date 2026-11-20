@@ -1,298 +1,424 @@
 # Templates
 
 Used only when the project has no page objects yet. A project that has them keeps its own
-structure. The examples use a sample bug tracker with roles `admin` and `tester`; names, paths
-and locators come from the real product, never from here.
+structure. The examples come from a sample bug tracker (a visitor registers a workspace and becomes
+its admin) and were run green against it; names, paths, locators and session details come from
+the real product, never from here.
 
 ## What is added
 
 ```
 scripts/page-snapshot.mjs
 src/
-  app/
-    abstract.ts              # PageHolder, Component, AppPage
-    index.ts                 # Application: every page and component, created once
-    pages/login.page.ts
+  config/urls.ts                    # webUrl(), if the bootstrap did not add it
+  ui/
+    step.ts                         # @step
+    app.ts                          # App: every page object, created on first use
     pages/<name>.page.ts
-    components/<name>.component.ts   # only when a second page needs it
-  fixtures/e2e.ts            # app, <role>App
-tests/
-  _setup/browser.login.ts
-  e2e/<area>/<scenario>.spec.ts
+    components/<name>.component.ts  # only when a second page shows the same part
+  fixtures/app.fixture.ts           # app, account, <role>App, shared<Role>App; merged in index.ts
+test-data/<topic>.ts                # input data builders, if the scenario types data
+tests/e2e/<area>/<scenario>.spec.ts
 ```
 
-Four levels, each adding one thing:
-
-| Class | Adds | Used for |
+| Piece | Holds | A test uses it as |
 |---|---|---|
-| `PageHolder` | holds `page` | base of everything |
-| `Component` | `expectLoaded()` | a piece of screen shared by pages: menu, dialog, message |
-| `AppPage` | `path`, `open()` | a page with its own address |
-| `Application` | one field per page and component | what a test receives: `adminApp.tickets.open()` |
+| page object | locators (`get`), user-intent methods, `expect*` checks, `open()` | `app.registerPage.createWorkspace(account)` |
+| `App` | one getter per page object, nothing else | `app`, `adminApp`, `sharedAdminApp` |
+| `app.fixture.ts` | how an account is made and how a browser is signed in | the test's arguments |
+| `<NAME>_COPY` | the copy a page object checks | `REGISTER_COPY.takenEmail` |
 
-## `src/app/abstract.ts`
+No base class: each page object takes `page` in its constructor and nothing else. Playwright already
+waits; a base class with `click`/`fill` helpers would only hide errors.
+
+## `src/ui/step.ts`
+
+Copy as is. TC39 decorators work with Playwright and TypeScript 5 without any `tsconfig` flag.
 
 ```ts
-import type { Page } from '@playwright/test';
+import { test } from '@playwright/test';
 
-/** Address of the web app. Absolute, so the API `baseURL` of the project stays untouched. */
+/** `openSignInFromHeader` → `open sign in from header`. */
+function words(name: string): string {
+  return name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+}
+
+/**
+ * Reports a page object method as a step named after the class and the method
+ * (`RegisterPage: register`), so the report and the trace read as user actions.
+ * The title never holds the arguments: they can be passwords. `box` points a failure at the line in
+ * the spec that called the method. For async methods only; a getter or a locator factory stays plain.
+ */
+export function step<This extends object, Args extends unknown[], Result>(
+  method: (this: This, ...args: Args) => Promise<Result>,
+  context: ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Promise<Result>>,
+): (this: This, ...args: Args) => Promise<Result> {
+  const name = words(String(context.name));
+  return function (this: This, ...args: Args): Promise<Result> {
+    return test.step(`${this.constructor.name}: ${name}`, () => method.call(this, ...args), { box: true });
+  };
+}
+```
+
+## `src/config/urls.ts`
+
+Pages are opened by full address, so the project `baseURL` stays the API address and `request` and `<role>Api` keep working in browser tests. Add `WEB_URL` to `.env` only when the web app has another address than the API.
+
+```ts
+/** Address of a page in the web app. Absolute, so the API `baseURL` of the project stays untouched. */
 export function webUrl(path = ''): string {
-  const base = (process.env.WEB_URL ?? process.env.BASE_URL ?? '').replace(/\/*$/, '/');
+  const base = (process.env.WEB_URL || process.env.BASE_URL || '').replace(/\/*$/, '/');
+  if (!base || base === '/') throw new Error('Missing in .env: BASE_URL (and WEB_URL when the web app has another address).');
   return new URL(path.replace(/^\//, ''), base).toString();
 }
+```
 
-export abstract class PageHolder {
-  constructor(protected readonly page: Page) {}
+## A page: `src/ui/pages/register.page.ts`
 
-  /** What is on screen now: roles and names, then visible test ids. For looking, not for tests. */
-  async snapshot(): Promise<string> {
-    const testIds = await this.page
-      .locator('[data-testid]')
-      .evaluateAll((elements) =>
-        elements.filter((element) => element.checkVisibility()).map((element) => element.getAttribute('data-testid')),
-      );
-    return `URL: ${this.page.url()}\n${await this.page.locator('body').ariaSnapshot()}\nTest ids: ${testIds.join(', ')}`;
+Locators first, then `open()`, then what the user does, then the checks. Only what the tests use;
+the next test adds what it needs.
+
+```ts
+import { expect, type Locator, type Page } from '@playwright/test';
+import type { NewAccount } from '@test-data/accounts';
+import { webUrl } from '../../config/urls';
+import { step } from '../step';
+
+/** Copy the registration page shows. A spec may import it to assert against. */
+export const REGISTER_COPY = {
+  takenEmail: 'This email is already registered',
+} as const;
+
+/** `#/register`: a visitor creates a workspace and becomes its admin. */
+export class RegisterPage {
+  static readonly path = '#/register';
+
+  constructor(readonly page: Page) {}
+
+  get heading(): Locator {
+    return this.page.getByRole('heading', { name: 'Create a workspace', exact: true });
   }
-}
 
-/** A piece of screen. `expectLoaded` checks the one element that proves it is there. */
-export abstract class Component extends PageHolder {
-  abstract expectLoaded(): Promise<void>;
-}
+  get nameInput(): Locator {
+    return this.page.getByLabel('Your name', { exact: true });
+  }
 
-/** A page with its own address. */
-export abstract class AppPage extends Component {
-  abstract readonly path: string;
+  get emailInput(): Locator {
+    return this.page.getByLabel('Email', { exact: true });
+  }
 
+  get passwordInput(): Locator {
+    return this.page.getByLabel('Password (8 characters or more)', { exact: true });
+  }
+
+  get createWorkspaceButton(): Locator {
+    return this.page.getByRole('button', { name: 'Create workspace', exact: true });
+  }
+
+  /** The form error under the fields (`role="alert"`). */
+  get formError(): Locator {
+    return this.page.getByRole('alert');
+  }
+
+  /** Opens the page, checks the server answered, waits for the heading. */
+  @step
   async open(): Promise<void> {
-    await this.goto(this.path);
+    const response = await this.page.goto(webUrl(RegisterPage.path));
+    // `null` means only the part after `#` changed: no new document was loaded, so there is no status to check.
+    expect(response === null || response.ok(), `${RegisterPage.path} answered ${response?.status()}`).toBe(true);
+    await expect(this.heading).toBeVisible();
   }
 
-  /** For pages whose address carries an id; see `TicketPage` below. */
-  protected async goto(path: string): Promise<void> {
-    await this.page.goto(webUrl(path));
-    await this.expectLoaded();
+  /** Fills in name, email and password and presses `Create workspace`. */
+  @step
+  async createWorkspace(account: NewAccount): Promise<void> {
+    await this.nameInput.fill(account.name);
+    await this.emailInput.fill(account.email);
+    await this.passwordInput.fill(account.password);
+    await this.createWorkspaceButton.click();
+  }
+
+  @step
+  async expectFormError(message: string): Promise<void> {
+    await expect(this.formError).toHaveText(message);
+    await expect(this.heading).toBeVisible();
   }
 }
 ```
 
-## A page: `src/app/pages/tickets.page.ts`
+- `open()` checks the answer to the navigation. A hash-routed app (`#/register`) loads a new
+  document only on the first `goto`; a later `goto` that only changes the part after `#` returns
+  `null`, which is not a failure.
+- `createWorkspace` is one user intent: three fields and a button. A method that only forwards one
+  click should not exist; the spec would learn nothing from it.
+- `expectFormError` also checks that the page did not move on: a refusal that navigates away is a
+  different bug.
+
+## A page the user lands on: `src/ui/pages/tickets.page.ts`
+
+`expectOpen()` is the check for "this page is on screen", used both by `open()` and by a test that
+arrives here through a click (after registration, after login).
 
 ```ts
-import { expect, type Locator } from '@playwright/test';
-import { AppPage } from '../abstract';
+import { expect, type Locator, type Page } from '@playwright/test';
+import { webUrl } from '../../config/urls';
+import { step } from '../step';
 
-export class TicketsPage extends AppPage {
-  readonly path = '#/tickets';
+/** `#/tickets`: the ticket list, the first page after login. */
+export class TicketsPage {
+  static readonly path = '#/tickets';
 
-  readonly heading = this.page.getByRole('heading', { name: 'Tickets' });
-  readonly newTicketButton = this.page.getByRole('button', { name: 'New ticket' });
-  readonly titleField = this.page.getByLabel('Title');
-  readonly saveButton = this.page.getByRole('button', { name: 'Create' });
+  constructor(readonly page: Page) {}
+
+  get heading(): Locator {
+    return this.page.getByRole('heading', { name: 'Tickets', exact: true });
+  }
+
+  get newTicketButton(): Locator {
+    return this.page.getByRole('button', { name: 'New ticket', exact: true });
+  }
 
   /** The row of one ticket, found by its title. */
   row(title: string): Locator {
     return this.page.getByRole('row').filter({ hasText: title });
   }
 
-  /** The status cell of that row. It has no role or label, so: test id. */
-  statusOf(title: string): Locator {
-    return this.row(title).getByTestId('ticket-row-status');
+  @step
+  async open(): Promise<void> {
+    const response = await this.page.goto(webUrl(TicketsPage.path));
+    expect(response === null || response.ok(), `${TicketsPage.path} answered ${response?.status()}`).toBe(true);
+    await this.expectOpen();
   }
 
-  async expectLoaded(): Promise<void> {
+  /** The list is on screen: after `open()`, or after a step that lands here (login, registration). */
+  @step
+  async expectOpen(): Promise<void> {
+    await expect(this.page).toHaveURL(new RegExp(`${TicketsPage.path}$`));
     await expect(this.heading).toBeVisible();
   }
+}
+```
 
-  async createTicket(data: { title: string }): Promise<void> {
-    await this.newTicketButton.click();
-    await this.titleField.fill(data.title);
-    await this.saveButton.click();
+## A component: `src/ui/components/site-header.component.ts`
+
+A part of the screen that several pages show. Make it when the second page needs it.
+
+```ts
+import { expect, type Locator, type Page } from '@playwright/test';
+import { step } from '../step';
+
+/** The bar on top of every page after login: logo, main menu, the signed-in user, `Log out`. */
+export class SiteHeader {
+  constructor(readonly page: Page) {}
+
+  get root(): Locator {
+    return this.page.getByRole('banner');
+  }
+
+  get mainMenu(): Locator {
+    return this.root.getByRole('navigation', { name: 'Main' });
+  }
+
+  get logOutButton(): Locator {
+    return this.root.getByRole('button', { name: 'Log out', exact: true });
+  }
+
+  /** The user's name next to `Log out`. Plain text with no role or label, so it is found by its text. */
+  userName(name: string): Locator {
+    return this.root.getByText(name, { exact: true });
+  }
+
+  @step
+  async expectSignedInAs(name: string): Promise<void> {
+    await expect(this.logOutButton).toBeVisible();
+    await expect(this.userName(name)).toBeVisible();
   }
 }
 ```
 
-Only what the tests use. The next test adds what it needs.
-
-A page whose address carries an id keeps the common part in `path` and gets its own opening
-method; the inherited `open()` is not used on it:
+## `src/ui/app.ts`
 
 ```ts
-export class TicketPage extends AppPage {
-  readonly path = '#/tickets';
-  readonly status = this.page.getByTestId('ticket-status');
-
-  async openTicket(id: number): Promise<void> {
-    await this.goto(`${this.path}/${id}`);
-  }
-
-  async expectLoaded(): Promise<void> {
-    await expect(this.status).toBeVisible();
-  }
-}
-```
-
-## The first page: `src/app/pages/login.page.ts`
-
-```ts
-import { expect } from '@playwright/test';
-import { AppPage } from '../abstract';
-
-export class LoginPage extends AppPage {
-  readonly path = '#/login';
-
-  readonly emailField = this.page.getByLabel('Email');
-  readonly passwordField = this.page.getByLabel('Password');
-  readonly logInButton = this.page.getByRole('button', { name: 'Log in' });
-
-  async expectLoaded(): Promise<void> {
-    await expect(this.logInButton).toBeVisible();
-  }
-
-  async logIn(email: string, password: string): Promise<void> {
-    await this.emailField.fill(email);
-    await this.passwordField.fill(password);
-    await this.logInButton.click();
-  }
-}
-```
-
-## `src/app/index.ts`
-
-```ts
-import { PageHolder } from './abstract';
-import { LoginPage } from './pages/login.page';
+import type { Page } from '@playwright/test';
+import { SiteHeader } from './components/site-header.component';
+import { RegisterPage } from './pages/register.page';
 import { TicketsPage } from './pages/tickets.page';
 
-/** Everything on screen that tests can use. A new page or component is added here. */
-export class Application extends PageHolder {
-  readonly login = new LoginPage(this.page);
-  readonly tickets = new TicketsPage(this.page);
+/**
+ * The page objects of one browser page. A container only: it holds no steps or checks of its own, and
+ * every member is the page object class in camelCase (`RegisterPage` is `app.registerPage`). Members are
+ * created on first use and reused for the rest of the test. A new page object gets its getter here.
+ *
+ * Specs take it from the `app`, `<role>App` or `shared<Role>App` fixture; `createApp` is for fixtures.
+ */
+export class App {
+  readonly #members = new Map<string, unknown>();
+
+  constructor(readonly page: Page) {}
+
+  get registerPage(): RegisterPage {
+    return this.#member('registerPage', () => new RegisterPage(this.page));
+  }
+
+  get siteHeader(): SiteHeader {
+    return this.#member('siteHeader', () => new SiteHeader(this.page));
+  }
+
+  get ticketsPage(): TicketsPage {
+    return this.#member('ticketsPage', () => new TicketsPage(this.page));
+  }
+
+  #member<T>(name: string, create: () => T): T {
+    if (!this.#members.has(name)) this.#members.set(name, create());
+    return this.#members.get(name) as T;
+  }
+}
+
+/** The page objects of `page`. Fixtures only: specs take `app`, `<role>App` or `shared<Role>App`. */
+export function createApp(page: Page): App {
+  return new App(page);
 }
 ```
 
-## `src/fixtures/e2e.ts`
+## `src/fixtures/app.fixture.ts`
 
-Extends the API fixtures, so a browser test also has `adminApi`, `unique`, `clientFor`.
+Only the block at the top is product-specific: how the API makes an account, and how a browser
+holds a session. Find both in step 2 of the skill; never guess them. Typical sessions:
+
+| The product keeps the session in | `addSession` |
+|---|---|
+| a cookie set by the login endpoint | log in with `context.request.post(...)`: the browser context shares the cookies |
+| `localStorage` / `sessionStorage` | `context.addInitScript` that writes the same value the app writes (example below) |
+| memory only | it cannot be set from outside: use the login page fallback at the end |
 
 ```ts
-import path from 'node:path';
-import type { Browser } from '@playwright/test';
-import { Application } from '../app';
-import { test as base, type Role } from './index';
+import { type Browser, type BrowserContext, expect } from '@playwright/test';
+import { newAccount } from '@test-data/accounts';
+import type { BaseClient } from '../api/base-client';
+import { type App, createApp } from '../ui/app';
+import { readAuthState, type Schemas, test as apiTest } from './api.fixture';
 
-export * from './index';
+/** An account a fixture made for one test, with what a browser needs to be signed in as it. */
+export interface Account {
+  name: string;
+  email: string;
+  password: string;
+  token: string;
+  user: Schemas['User'];
+}
 
-/** Browser session of a role, saved by `tests/_setup/browser.login.ts`. */
-export const browserStateFile = (role: Role): string =>
-  path.join(__dirname, '../../.auth', `${role}.browser.json`);
+// ---- Adapt this block to the product: how an account is created, how a browser holds a session. ----
+
+/** A new account through the API: `POST /auth/register` makes a fresh workspace with its admin. */
+async function createAccount(api: BaseClient): Promise<Account> {
+  const data = newAccount();
+  const response = await api.send('POST', '/auth/register', { data });
+  expect(response.status(), `POST /auth/register answered ${response.status()}: ${await response.text()}`).toBe(201);
+  const body: Schemas['AuthResponse'] = await response.json();
+  return { ...data, token: body.token, user: body.user };
+}
+
+/** The web app keeps its session in `localStorage['bugboard.session']` as `{ token, user }`. */
+async function addSession(context: BrowserContext, session: { token: string; user: Schemas['User'] }): Promise<void> {
+  await context.addInitScript((value) => localStorage.setItem('bugboard.session', value), JSON.stringify(session));
+}
+
+// -------------------------------------------------------------------------------------------------------
+
+/** A browser of its own, signed in, so two roles can act in one test. Closed after the test. */
+async function signedInApp(
+  browser: Browser,
+  session: { token: string; user: Schemas['User'] },
+  use: (app: App) => Promise<void>,
+): Promise<void> {
+  const context = await browser.newContext();
+  await addSession(context, session);
+  await use(createApp(await context.newPage()));
+  await context.close();
+}
 
 type AppFixtures = {
-  /** Not logged in: the login page and what a visitor sees. */
-  app: Application;
-  adminApp: Application;
-  testerApp: Application;
+  /** The page objects on the test's `page`, as a visitor who is not signed in. */
+  app: App;
+  /** A fresh account for this test only, made through the API. A precondition, not a step. */
+  account: Account;
+  /** Signed in as `account`, in a browser of its own: for tests that change data. */
+  adminApp: App;
+  /** Signed in as the admin saved by the setup project: for tests that only read. */
+  sharedAdminApp: App;
 };
 
-/** Each role gets its own browser window, so two roles can act in one test. */
-async function appFor(browser: Browser, role: Role, use: (app: Application) => Promise<void>) {
-  const context = await browser.newContext({ storageState: browserStateFile(role) });
-  await use(new Application(await context.newPage()));
-  await context.close();
-}
-
-export const test = base.extend<AppFixtures>({
-  app: async ({ page }, use) => use(new Application(page)),
-  adminApp: async ({ browser }, use) => appFor(browser, 'admin', use),
-  testerApp: async ({ browser }, use) => appFor(browser, 'tester', use),
+export const test = apiTest.extend<AppFixtures>({
+  app: async ({ page }, use) => {
+    await use(createApp(page));
+  },
+  account: async ({ api }, use) => {
+    await use(await createAccount(api));
+  },
+  adminApp: async ({ browser, account }, use) => {
+    await signedInApp(browser, account, use);
+  },
+  sharedAdminApp: async ({ browser, adminApi }, use) => {
+    const response = await adminApi.send('GET', '/me');
+    expect(response.status(), 'the saved admin session is no longer accepted: run the setup project').toBe(200);
+    const user: Schemas['User'] = await response.json();
+    await signedInApp(browser, { token: readAuthState('admin')?.token ?? '', user }, use);
+  },
 });
 ```
 
-One `<role>App` line per role in `Role`. A product without roles has `app` and `userApp`.
+- `account` is a precondition, not a step: a test that needs a registered email asks for `account`.
+- `adminApp` gets its own browser context, so a test can take two roles (`adminApp`, `memberApp`)
+  at once. Contexts made this way do not take the project's `use` options (viewport, locale): set
+  them in `browser.newContext({ ... })` when the product needs them.
+- One `<role>App` and one `shared<Role>App` per role in `Role`. A product without roles has `app`,
+  `account`, `userApp`, `sharedUserApp`.
 
-## `tests/_setup/browser.login.ts`
+Merge it into `src/fixtures/index.ts`, and export the `Account` type there:
 
 ```ts
-import fs from 'node:fs';
-import type { Browser } from '@playwright/test';
-import { Application } from '../../src/app';
-import { browserStateFile, readAuthState, test as setup, type Role } from '../../src/fixtures/e2e';
+import { test as apiTest } from './api.fixture';
+import { test as appTest } from './app.fixture';
 
-/** Credentials: `.env` for accounts that exist, `.auth/<role>.json` for accounts the setup created. */
-function credentials(role: Role): { email: string; password: string } {
-  const prefix = role.toUpperCase();
-  const saved = readAuthState(role);
-  const email = process.env[`${prefix}_EMAIL`] ?? saved?.email;
-  const password = process.env[`${prefix}_PASSWORD`] ?? saved?.password;
-  if (!email || !password) {
-    throw new Error(
-      `No email and password for "${role}": fill ${prefix}_EMAIL / ${prefix}_PASSWORD in .env, or run the setup project first.`,
-    );
-  }
-  return { email, password };
-}
-
-/** True when the saved browser session still opens the first page after login. */
-async function sessionWorks(browser: Browser, role: Role): Promise<boolean> {
-  if (!fs.existsSync(browserStateFile(role))) return false;
-  const context = await browser.newContext({ storageState: browserStateFile(role) });
-  try {
-    await new Application(await context.newPage()).tickets.open();
-    return true;
-  } catch {
-    return false;
-  } finally {
-    await context.close();
-  }
-}
-
-async function logInThroughTheLoginPage(browser: Browser, role: Role): Promise<void> {
-  if (await sessionWorks(browser, role)) return;
-
-  const { email, password } = credentials(role);
-  const context = await browser.newContext();
-  const app = new Application(await context.newPage());
-  await app.login.open();
-  await app.login.logIn(email, password);
-  await app.tickets.expectLoaded();
-  await context.storageState({ path: browserStateFile(role) });
-  await context.close();
-}
-
-setup('admin: browser login', async ({ browser }) => {
-  await logInThroughTheLoginPage(browser, 'admin');
-});
-
-setup('tester: browser login', async ({ browser }) => {
-  await logInThroughTheLoginPage(browser, 'tester');
-});
+export const test = mergeTests(apiTest, appTest);
+export type { Account } from './app.fixture';
 ```
 
-`tickets` here stands for the page a user lands on after login; use the product's own. The
-`try` / `catch` is allowed in this one place: it asks a question ("is the session alive?") and
-does not hide a failed check. A product that keeps the session in memory only (nothing in cookies
-or storage) cannot reuse it: say so and log in inside a fixture instead.
+## Input data: `test-data/accounts.ts`
 
-## `playwright.config.ts`: the browser projects
-
-Replace the `e2e` block of the bootstrap config with this. The project `baseURL` stays the API
-address, so `request` and `<role>Api` work in browser tests; pages use `webUrl()`.
+What a test types into the product. A builder returns a new, unique value each time; the `qa-pw-`
+prefix marks what tests created on a shared environment.
 
 ```ts
-    ...(fs.existsSync(e2eDir)
+import { unique } from '@/utils/unique';
+
+/** What the registration form and `POST /auth/register` take. */
+export interface NewAccount {
+  name: string;
+  email: string;
+  password: string;
+}
+
+/** A new account nobody has registered yet. `qa-pw-` marks what tests created on a shared environment. */
+export function newAccount(): NewAccount {
+  const id = unique('qa-pw');
+  return { name: 'QA autotest', email: `${id}@example.test`, password: `pw-${id}` };
+}
+```
+
+## `playwright.config.ts`: the `e2e` project
+
+Add to `projects`, and `devices` to the `@playwright/test` import. It depends on `setup` when a
+`shared<Role>App` reuses the role saved there.
+
+```ts
+    ...(fs.existsSync(path.join(__dirname, 'tests/e2e'))
       ? [
-          {
-            name: 'browser-setup',
-            testDir: './tests/_setup',
-            testMatch: /.*\.login\.ts/,
-            use: { ...devices['Desktop Chrome'] },
-            dependencies: ['setup'],
-          },
           {
             name: 'e2e',
             testDir: './tests/e2e',
             use: { ...devices['Desktop Chrome'] },
-            dependencies: ['browser-setup'],
+            dependencies: ['setup'],
           },
         ]
       : []),
@@ -303,30 +429,29 @@ address, so `request` and `<role>Api` work in browser tests; pages use `webUrl()
 ## `scripts/page-snapshot.mjs`
 
 ```js
-// Prints what is really on a page: roles and names, and test ids.
-// Usage: node scripts/page-snapshot.mjs '<path>' [role]
-import fs from 'node:fs';
+// Prints what is really on a page for a visitor: roles and names, and test ids.
+// Usage: node scripts/page-snapshot.mjs '<path>'   (for example '#/register' or '/login')
 import { chromium } from '@playwright/test';
 import dotenv from 'dotenv';
 
 dotenv.config({ quiet: true });
 
-const [target = '', role] = process.argv.slice(2);
-const base = (process.env.WEB_URL ?? process.env.BASE_URL ?? '').replace(/\/*$/, '/');
-const stateFile = role ? `.auth/${role}.browser.json` : undefined;
-if (stateFile && !fs.existsSync(stateFile)) {
-  console.error(`No saved browser login for "${role}". Run: npx playwright test --project=browser-setup`);
+const [target = ''] = process.argv.slice(2);
+const base = (process.env.WEB_URL || process.env.BASE_URL || '').replace(/\/*$/, '/');
+if (base === '/') {
+  console.error('Missing in .env: BASE_URL (and WEB_URL when the web app has another address).');
   process.exit(1);
 }
 
 const browser = await chromium.launch();
-const context = await browser.newContext(stateFile ? { storageState: stateFile } : {});
-const page = await context.newPage();
-await page.goto(new URL(target.replace(/^\//, ''), base).toString());
-// A look, not a test: give the page a moment to settle, and do not hang on apps that never go quiet.
-await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {});
+const page = await browser.newPage();
+page.setDefaultTimeout(15_000);
+const response = await page.goto(new URL(target.replace(/^\//, ''), base).toString());
+// A look, not a test: let the page render, but do not hang on apps that never go quiet.
+await page.waitForLoadState('load');
+await page.locator('body *').first().waitFor().catch(() => {});
 
-console.log(`URL: ${page.url()}\nTitle: ${await page.title()}\n`);
+console.log(`URL: ${page.url()}  (status ${response?.status() ?? 'same document'})\nTitle: ${await page.title()}\n`);
 console.log(await page.locator('body').ariaSnapshot());
 
 const testIds = await page.locator('[data-testid]').evaluateAll((elements) =>
@@ -342,84 +467,97 @@ await browser.close();
 If the product uses another attribute for test ids, change it here and set `testIdAttribute` in
 the config. The address in the output shows a redirect to login at once.
 
-## A spec: `tests/e2e/tickets/create-ticket.spec.ts`
+## A spec: `tests/e2e/auth/register.spec.ts`
 
 ```ts
-import { expect, test, unique, type Schemas } from '../../../src/fixtures/e2e';
-// Data helpers the API specs already use. If the project has none, call the API with `clientFor`.
-import { createProject, deleteProject } from '../../../src/data/projects';
+import { Tag } from '@/config/tags';
+import { expect, test } from '@/fixtures';
+import { REGISTER_COPY } from '@/ui/pages/register.page';
+import { newAccount } from '@test-data/accounts';
 
-let project: Schemas['Project'];
+test('Visitor creates a workspace and lands on the ticket list, signed in', { tag: [Tag.smoke, Tag.auth] }, async ({ app }) => {
+  const account = newAccount();
 
-test.beforeAll(async ({ request }) => {
-  project = await createProject(request);
+  await test.step('Visitor opens the registration page', async () => {
+    await app.registerPage.open();
+  });
+
+  await test.step('Visitor fills in name, email and password and creates the workspace', async () => {
+    await app.registerPage.createWorkspace(account);
+  });
+
+  await test.step('The ticket list opens with the visitor signed in', async () => {
+    await app.ticketsPage.expectOpen();
+    await app.siteHeader.expectSignedInAs(account.name);
+  });
 });
 
-test.afterAll(async ({ request }) => {
-  await deleteProject(request, project.id);
+test('Visitor cannot create a workspace with an email that is already registered', { tag: [Tag.auth] }, async ({ app, account }) => {
+  await app.registerPage.open();
+  await app.registerPage.createWorkspace({ ...newAccount(), email: account.email });
+
+  await app.registerPage.expectFormError(REGISTER_COPY.takenEmail);
 });
 
-test(
-  'tester creates a ticket and sees it in the list',
-  { tag: ['@smoke', '@regression'] },
-  async ({ testerApp }) => {
-    const title = unique('ticket');
+test('Admin sees the demo project ticket list right after sign-in', async ({ sharedAdminApp: app }) => {
+  await app.ticketsPage.open();
 
-    await testerApp.tickets.open();
-    await testerApp.tickets.createTicket({ title });
-
-    await expect(testerApp.tickets.row(title)).toBeVisible();
-    // 'Open' is the label the screen uses for status `open`; the mapping is recorded in CLAUDE.md.
-    await expect(testerApp.tickets.statusOf(title)).toHaveText('Open');
-  },
-);
-```
-
-Two roles in one scenario:
-
-```ts
-test('admin closes the ticket and the tester sees it closed', async ({ adminApp, testerApp, adminApi }) => {
-  // data through the API: a resolved ticket reported by the tester
-  await test.step('admin closes the ticket', async () => { /* adminApp... */ });
-  await test.step('tester sees it closed', async () => { /* testerApp... */ });
+  await expect(app.ticketsPage.row('Login button does nothing on Safari')).toBeVisible();
 });
 ```
+
+- The first test is the scenario, step by step, as the manual case reads. The second is the one
+  refusal the screen must show; the other refusals (short password, bad email) are API tests.
+- The third test shows `shared<Role>App` for a test that only reads.
+- The spec never touches a locator to act; it may assert on a page object's locator once
+  (`toBeVisible()` on a row) when no other spec needs that check.
 
 ## A throwaway spec for looking at a page
 
-For a page the snapshot script cannot reach: it needs a login that is not saved yet, prepared
-data (an address with an id, a record in a given status), or an action first. Put it in
-`tests/e2e/_look.spec.ts`, run it with `npx playwright test tests/e2e/_look.spec.ts --project=e2e`,
-and empty the file when done.
+For a page the snapshot script cannot reach: it needs a session, prepared data, or an action first,
+and for finding where the session lives (step 2 of the skill). Put it in `tests/e2e/_look.spec.ts`,
+run it with `npx playwright test tests/e2e/_look.spec.ts --project=e2e`, and delete the file when done.
 
 ```ts
-import { test } from '../../src/fixtures/e2e';
+import { test } from '@/fixtures';
 
-test('look', async ({ testerApp, adminApi }) => {
-  test.setTimeout(15_000);
-  // create what the page needs through the API
-  try {
-    await testerApp.tickets.open();
-    console.log(await testerApp.tickets.snapshot());
-    // one action, then print again. Never wait for an element you have not seen yet.
-  } finally {
-    // delete what was created
-  }
+// Throwaway: look at a page that needs a session, data or an action first. Delete this file when done.
+// eslint-disable-next-line playwright/expect-expect
+test('look', async ({ app }) => {
+  test.setTimeout(30_000);
+  await app.registerPage.open();
+  // One action through the page object, then print. Never wait for an element you have not seen yet.
+  const page = app.page;
+  console.log(`URL: ${page.url()}\n${await page.locator('body').ariaSnapshot()}`);
+  console.log('cookies:', (await page.context().cookies()).map((cookie) => cookie.name));
+  console.log('localStorage:', await page.evaluate(() => Object.keys(localStorage)));
+  console.log('sessionStorage:', await page.evaluate(() => Object.keys(sessionStorage)));
 });
 ```
 
-Before the browser login exists, use the `app` fixture, log in with the page object you just
-wrote, and print the snapshot: that shows the page a user lands on and its address.
+Before `app.fixture.ts` exists, take `{ page }` instead of `{ app }`, log in through the form with
+plain locators, and print the storage: that is how you learn what `addSession` must write.
 
-## `CLAUDE.md` lines after the first browser test
+## `AGENTS.md` lines after the first browser test
 
-The first line replaces the "Browser login" line in step 2; the other two go under
-"Test conventions" in step 9.
+The first line replaces the "Browser" line; the others go under "Test conventions".
 
 ```md
-- Browser login: `tests/_setup/browser.login.ts` logs in through the login page once per role and
-  saves the session to `.auth/<role>.browser.json`. Tests use `adminApp` / `testerApp`.
-- Page objects: `src/app/` (`PageHolder` → `Component` → `AppPage`; `Application` in `index.ts`
-  holds every page). Import browser tests from `src/fixtures/e2e`.
-- Look at a page before writing a locator: `node scripts/page-snapshot.mjs '<path>' <role>`.
+- Browser: tests take `app` (visitor), `<role>App` (fresh account, own browser) or `shared<Role>App`
+  (the setup's account, read-only) from `@/fixtures`. A session is set from outside the browser:
+  <how, from step 2>.
+- Page objects: `src/ui/pages/`, `src/ui/components/`, each a getter in `src/ui/app.ts`. Locators
+  first, user-intent methods, `expect*` checks, `@step` on every public async method, copy in
+  `<NAME>_COPY`.
+- Look at a page before writing a locator: `node scripts/page-snapshot.mjs '<path>'`.
 ```
+
+## Fallback: the session cannot be set from outside
+
+When the API cannot create accounts and the session lives only in the browser's memory, log in
+through the login page once per role per run in a setup project, save `context.storageState()` to
+`.auth/<role>.browser.json`, and build `<role>App` from that file:
+`browser.newContext({ storageState: '.auth/<role>.browser.json' })`. Add the project
+`{ name: 'browser-setup', testDir: './tests/_setup', testMatch: /.*\.login\.ts/, dependencies: ['setup'] }`
+and make `e2e` depend on it. Record in `AGENTS.md` that tests then share one account per role, so
+tests that change data must clean up after themselves.

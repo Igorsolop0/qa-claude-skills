@@ -34,8 +34,8 @@ taken, propose the next one.
 
 Why the default: in a monorepo, `npx playwright` from the root picks up the hoisted runner and
 does not see the test project's config or its projects. In a monorepo do not offer the root.
-Write "run commands from `<folder>`" into the README and `CLAUDE.md`. Claude Code must also be
-started from that folder, or project skills are not found.
+Write "run commands from `<folder>`" into the README and `AGENTS.md`. Claude Code must also be
+started from that folder, or the project's `CLAUDE.md` and project skills are not found.
 
 ### 1.4 What do you want to test?
 | Option | Produces |
@@ -113,22 +113,24 @@ disk and the README says to ask the backend team for the limit.
 ### 4.1 How do you want to slice runs?
 | Option | Produces |
 |---|---|
-| By domain, with `@smoke` and `@regression` tags (default) | One project per folder in `tests/api/`; tags for intent |
+| By domain, with tags such as `@smoke` (default) | One project per folder in `tests/api/`; tags for intent, from `src/config/tags.ts` |
 | Tags only | One `api` project |
 | Per brand, country or tenant too | A worker option plus one project per value that is configured in env |
 
 Why the default: a project answers "which part of the product", a tag answers "why this run".
 They combine: `--project=api-users --grep @smoke`. Smoke as a separate project duplicates test
-selection and tends to stay in the config without a CI job.
+selection and tends to stay in the config without a CI job. There is no `@regression` tag:
+regression is every test, so a run without `--grep` is the regression run.
 
 Ask for the first domain name (for example `users`). Create only `health`; write the domain name
-into `CLAUDE.md`. Its folder appears with its first spec.
+into `AGENTS.md` and its tag into `src/config/tags.ts`. Its folder appears with its first spec.
 
 ### 4.2 CI
 Detected provider is the default; nothing detected: ask which one (GitHub Actions, GitLab, Azure,
 none yet). Ask whether the CI can reach the test environment: `localhost` or a VPN-only address
 cannot run on hosted runners (default: decide from the base URL; `localhost` means no). Multi-select for triggers:
 - Manual button with `project` and `grep` inputs (always on)
+- On every push to the main branch (a new repository shows its first green run at once; lint runs too)
 - Nightly
 - On pull request (warn: red tests will block merges; start without it)
 

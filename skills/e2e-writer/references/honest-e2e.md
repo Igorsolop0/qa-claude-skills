@@ -14,7 +14,7 @@ A browser test is honest when it fails if a user would see the product wrong, an
 | Reload or open the page again for "it was saved" | Trust the screen right after saving | The screen can show what was typed without storing it |
 
 A status or another fixed value has two forms: the value in the API (`in_progress`) and the label
-on screen ("In progress"). Look the label up once, record the mapping in `CLAUDE.md`, and assert
+on screen ("In progress"). Look the label up once, record the mapping in `AGENTS.md`, and assert
 the label on the element that holds it, not on the whole row.
 
 Before `toBeHidden()` assert something that is present in that state. Otherwise the check passes
@@ -36,17 +36,20 @@ on a page that is still loading.
 
 ## Data
 
-- Everything the scenario needs before its first click is created through the API.
-- Names through `unique()`; the test finds its data by that name.
-- The test deletes what it created, also when it fails (`afterAll`, or a fixture).
-- Two tests never share one record that either of them changes.
+- Everything the scenario needs before its first click is created through the API, in a fixture
+  (`account`, a project, a ticket). The fixture deletes it after the test, also when the test fails.
+- Names through a builder in `test-data/` (`unique()` inside); the test finds its data by that name.
+- Two tests never share one record that either of them changes: a test that changes data takes
+  `<role>App` (its own account), a test that only reads may take `shared<Role>App`.
 - On a paged or shared list, narrow it first (filter, search) the way a user would.
 
 ## Page objects
 
-- Locators and user actions only. No assertions except `expectLoaded()`.
+- Locators, user-intent methods and `expect*` checks of the page's states. The checks of a test's
+  outcome that only one spec needs may stay in that spec.
 - No method that only wraps one Playwright call with the same name.
 - A locator used by one test and nowhere else still belongs in the page object, not in the spec.
+- `@step` on every public async method, so the report shows the user action that failed.
 - When the screen changes, one class changes. If two classes must change, something is duplicated.
 
 ## Reading a red browser test

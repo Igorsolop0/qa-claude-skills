@@ -3,7 +3,7 @@ name: api-contract-reviewer
 description: |
   Behavioral review of Playwright API contract tests (specs, clients, fixtures, test data) for
   patterns that cause false positives, silent contract drift, test coupling, secret leaks, or
-  access through a route the project forbids. Reads the project's `CLAUDE.md` for what is
+  access through a route the project forbids. Reads the project's `AGENTS.md` for what is
   particular about the product. API-only: does not check UI locators, waits, or Page Objects.
   Trigger: "review this API test", "check this API spec", "is this API test correct", "review API
   spec", "why is this contract test flaky", "code review API test", "check contract test quality",
@@ -26,7 +26,8 @@ If the user shares a directory, scan every `.spec.ts` plus the clients and fixtu
 
 ## Context you need before reviewing
 
-Read `CLAUDE.md` in the test folder first ("Project profile" and "Test conventions"). It tells
+Read `AGENTS.md` in the test folder first ("Project profile" and "Test conventions"; a `CLAUDE.md`
+there may only import it). It tells
 you what this skill cannot know:
 
 - Response shapes: plain JSON, or an envelope where a business failure can be HTTP 200 with a
@@ -36,11 +37,17 @@ you what this skill cannot know:
   mutating tests may run.
 - The suite's own conventions (fixtures, data helpers, naming).
 
-No `CLAUDE.md`: infer these from the fixtures and two existing specs, and say in the report that
+No `AGENTS.md` or `CLAUDE.md`: infer these from the fixtures and two existing specs, and say in the report that
 the review assumed them. The writer conventions are in the `api-contract-writer` skill
 (`references/honest-tests.md`, `references/optional-layers.md`); cite them when a finding depends
 on one. Catalog items about envelopes (C2, H2), forbidden routes (C4) and traceability (M6) apply only when the
 profile describes such a thing: adapt the names in them to this product.
+
+When the project uses the default structure of `pw-project-bootstrap` (`test`/`expect` from
+`@/fixtures`, tags from `src/config/tags.ts`, precondition fixtures), also flag: a spec importing
+`test`/`expect` from `@playwright/test` (the schema matchers are then missing), data created in the
+steps of a test instead of a fixture (H5/M3 apply), `@regression` or raw `'@…'` tag strings, and a
+relative path into `src/`. Say whether `npm run lint` would have caught it.
 
 ## Workflow
 

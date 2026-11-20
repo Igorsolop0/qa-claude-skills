@@ -7,7 +7,7 @@
  *
  * Run it from the folder that holds `playwright.config.ts`. `--backend-prefix` is the path prefix of the
  * backend the tests call; `--ignore-path` is a regex for calls to drop (analytics beacons). Both come
- * from the project profile in `CLAUDE.md`.
+ * from the project profile in `AGENTS.md`.
  *
  * Writes `<out>/triage.json` and prints a Markdown digest. It reads files only; the
  * `pw-failure-triage` skill decides what each failure is and what to do about it.

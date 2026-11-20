@@ -12,7 +12,7 @@ behaviour as strictly as before, not a test that passes.
    look through a browser tool (delegated to a cheap worker) at the same viewport and session as
    the project.
 3. **Patch** the smallest thing: the Page Object or component locator first, the spec second.
-   Follow the project's conventions (`playwright-sdet-expert`: accessible locators, exact matches).
+   Follow the project's conventions (`AGENTS.md`, and `e2e-writer` `references/playwright-rules.md`: accessible locators, exact matches).
 4. **Verify** with `--repeat-each=3`, plus the sibling projects that run the same spec when the
    fix touches a shared Page Object.
 5. **Stop** after three patch attempts on one test. Report it as unresolved with the attempts.

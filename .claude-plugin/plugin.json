@@ -1,0 +1,13 @@
+{
+  "name": "qa-skills",
+  "version": "0.4.0",
+  "description": "Claude Code skills for QA engineers: set up a Playwright + TypeScript project by interview, write honest API contract and browser tests, review them, prove they can fail, triage red runs, and design a test plan before implementation.",
+  "author": {
+    "name": "Ihor Solopii",
+    "url": "https://github.com/Igorsolop0"
+  },
+  "homepage": "https://github.com/Igorsolop0/qa-claude-skills",
+  "repository": "https://github.com/Igorsolop0/qa-claude-skills",
+  "license": "MIT",
+  "keywords": ["playwright", "testing", "qa", "typescript", "api", "e2e", "page-object", "code-review"]
+}
