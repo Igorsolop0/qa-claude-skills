@@ -59,7 +59,7 @@ A test that cannot fail proves nothing. Break the test on purpose and confirm it
 
 - Dev or test environments only, never prod. Never mutate product code, env files, config, or fixtures that create data or set auth (storage state, account fixtures, data builders).
 - Mutate the assertion that carries the intent wherever it lives. When it sits in a Page Object or helper, mutate that one line and run only the one spec under review. Name the helper in the report: the same edit would also break every other spec that imports it.
-- One mutation at a time. Usually one per independent assertion or step, up to 4 per test, riskiest first.
+- One mutation at a time. Usually one per independent assertion or step, **at most 4 per test**, riskiest first. Stop at 4 even when more candidates exist, and name the ones you left out.
 - Never `git checkout`, `restore`, `stash`, or `reset` to revert: the tree often holds uncommitted work, sometimes another agent's. Use `scripts/mutate.ts` (below). It restores the original bytes and prints `RESTORED`. On `RESTORE-FAILED`, stop.
 - Preconditions: the project exists (`<run command> <spec> --list --project=<project>`) and the baseline run is green. If the baseline is red, run it once more. If it is red twice, record the first failing line and skip that test.
 - Live side effects: runs against a live environment may register real accounts or leave real data. Budget per test: 1 baseline plus the mutations, `--retries=0`, no whole-file runs, no re-runs for curiosity.
@@ -70,7 +70,7 @@ Prefer changing the input or the observable behaviour over rewriting the expecte
 
 - Remove the assertion (`--new ''` on the `await expect…` call). If the test still passes, the assertion carries no weight. This is the strongest probe for guard and precondition checks.
 - API: invalid payload, wrong id or token, wrong tenant, a flipped flag. Then the expected status, code, or field.
-- UI: negated state (`toBeVisible` → `toBeHidden`, `"signed-in"` → `"guest"`), wrong URL or query parameter, a regex that cannot match, a wrong locator or test id.
+- UI: negated state (`"signed-in"` → `"guest"`), wrong URL or query parameter, a regex that cannot match, a wrong expected text, a wrong locator or test id. Use `toBeVisible` → `toBeHidden` only when an earlier assertion in the same test already proved the element is on screen: on a page that renders late, `toBeHidden` passes before the element appears and the mutation proves nothing.
 - When the spec has no assertions of its own (everything is delegated to a helper), mutate the helper's assertions. Also mutate one spec-level input, such as the case slug or data id behind the title. If that input mutation survives, the test name is not tied to what the test checks.
 
 **Run**

@@ -188,6 +188,12 @@ Show the user and stop:
 Under it: the fixtures that prepare data, the page objects and methods you will add or extend,
 findings from step 4, and what you left out. Write only after a clear yes.
 
+**This stop is not optional,** even when the user's request already names the test exactly ("write
+a test: an admin creates a ticket and sees it"): the user approves the steps, the outcome you will
+assert, and the data the fixtures create, not just the title. Until that yes, write nothing for the
+scenario: no page object, fixture, builder or spec. Only the setup of step 2 and the throwaway look
+spec may exist before it.
+
 ## Step 6 — Write
 
 Read [references/playwright-rules.md](references/playwright-rules.md) first.

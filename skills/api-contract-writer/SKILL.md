@@ -157,6 +157,8 @@ For every new test, break one expectation on purpose (the status, one value, the
 it, see it fail for that reason, and restore it. A test that stays green with a wrong expectation
 checks nothing: fix it or delete it. Restore by undoing your own edit, then confirm with a run.
 Tell the user in plain words what each test would catch ("fails if the status becomes 403").
+When Bun is installed, `pw-test-review`'s mutation check does the same with a script that restores
+the file byte for byte; without it, edit and undo by hand as above.
 Finish with a run that gives the same result as step 6 (green, or red only for reported product
 defects), the type check and lint.
 
