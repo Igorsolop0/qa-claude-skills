@@ -95,7 +95,9 @@ One plugin holds every skill:
 Restart Claude Code. The skills then show as `/qa-skills:pw-project-bootstrap`,
 `/qa-skills:e2e-writer` and so on; you can also just describe the job ("set up a Playwright project")
 and Claude picks the skill. Update later: `claude plugin marketplace update qa-claude-skills`, then
-`claude plugin update qa-skills@qa-claude-skills`.
+`claude plugin update qa-skills@qa-claude-skills`, then restart. The update compares version
+numbers, so every change to the skills bumps the version in `.claude-plugin/plugin.json` and
+`.claude-plugin/marketplace.json`.
 
 The same from a terminal, without opening Claude Code:
 
