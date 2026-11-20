@@ -8,6 +8,7 @@ Walk through the test code and flag the following. Categorize each finding by pr
 - [High](#high) — strong code smell
 - [Medium](#medium) — worth fixing but not urgent
 - [Low](#low) — nice-to-have / cosmetic
+- [Project structure](#project-structure) — only when the project uses the default structure
 - [Context-aware priority bumps](#context-aware-priority-bumps)
 
 ---
@@ -119,7 +120,9 @@ Walk through the test code and flag the following. Categorize each finding by pr
 ### 13. Hardcoded URLs instead of `baseURL`
 
 - **Why:** breaks environment switching, leaks prod URLs into the suite, and complicates running the same tests against staging/local.
-- **Fix:** set `baseURL` in `playwright.config.ts` and use relative paths in `page.goto('/path')`.
+- **Fix:** read the address from env in one place: `baseURL` in `playwright.config.ts` with relative
+  `page.goto('/path')`, or the project's `webUrl()` when `baseURL` is the API address (the default
+  structure of `pw-project-bootstrap`).
 
 ### 14. Hardcoded test data that collides on rerun
 
@@ -176,6 +179,9 @@ Walk through the test code and flag the following. Categorize each finding by pr
 ### 16. `.spec.ts` vs `.test.ts` inconsistency
 
 - Cosmetic but: pick one convention across the project. The "spec" naming dates back to a defunct "tests as specification" idea.
+- Exception: the default structure uses both on purpose. `tests/**/*.spec.ts` are Playwright specs,
+  `src/utils/*.test.ts` are unit tests of pure functions. Flag only a `*.test.ts` under `tests/` or a
+  `*.spec.ts` under `src/`.
 
 ### 17. Comments explaining `await`
 
@@ -188,7 +194,7 @@ Walk through the test code and flag the following. Categorize each finding by pr
 ### 19. Global test-data file (`testData.ts` / `fixtures.ts` / `data.ts`)
 
 - **Why:** when one file aggregates presets/users/payloads from multiple unrelated flows, every spec imports the union, every change touches the same file, and the test data becomes a god object. Renaming a single preset cascades into specs that should have nothing to do with it.
-- **Fix:** colocate test data with the flow that owns it (`tests/<flow>/<flow>.presets.ts`). Lift only true cross-flow atoms (durations, enums, hard ceilings) into one domain-scoped constants file next to the flows that use them — still not one mega-file.
+- **Fix:** one builder file per topic (`test-data/accounts.ts`, `test-data/tickets.ts`), each owned by the domain that uses it; follow the project's own place when it has one. `tests/` holds specs only. Lift only true cross-domain atoms (durations, enums, hard ceilings) into one domain-scoped constants file — still not one mega-file.
 
 ### 20. Separate `locators/` folder or `*.locators.ts` file
 
@@ -200,8 +206,62 @@ Walk through the test code and flag the following. Categorize each finding by pr
 - **Why:** `async clickLogin() { await this.loginButton.click(); }` adds a name and an import edge but
   no behaviour: the spec could call the locator directly. Many of them make a POM look rich while it
   hides nothing (the deletion test: if inlining the method loses nothing, it should not exist).
-- **Fix:** delete it and use the getter, or make it carry a whole user intent: the steps of one action
-  plus the wait for its outcome (`signInAs(account)`).
+- **Fix:** make it carry a whole user intent: the steps of one action plus the wait for its outcome
+  (`signInAs(account)`). Do not move the click into the spec: a spec acts only through page object
+  methods (#29).
+
+## Project structure
+
+Check these only when the project's `AGENTS.md` (or the code) shows the default structure of
+`pw-project-bootstrap` and `e2e-writer`: an `App` container from fixtures, page objects in `src/ui/`,
+`test`/`expect` from `@/fixtures`, tags from `src/config/tags.ts`. A project with another structure
+is reviewed against its own. Most of these are also ESLint errors there: when you find one, say
+that `npm run lint` would have caught it, and check that CI runs lint.
+
+### 29. A spec acts on a locator (Medium)
+
+- **Why:** `await app.registerPage.submitButton.click()` in a spec spreads the page's steps over
+  every spec that needs them; when the screen changes, every one of them changes.
+- **Fix:** a page object method named after the user's intent (`createWorkspace(account)`). A one-off
+  assertion on a page object's locator in a spec is fine.
+
+### 30. A spec builds its own page objects (Medium)
+
+- **Why:** `new RegisterPage(page)` or `createApp(page)` in a spec bypasses the fixture that signs the
+  browser in, so a test can run as the wrong user, and a second page object of the same page drifts
+  from the one in `App`.
+- **Fix:** take `app`, `<role>App` or `shared<Role>App` from the test arguments.
+
+### 31. `test` / `expect` imported from `@playwright/test` in a spec (Medium)
+
+- **Why:** the spec loses the project's fixtures and its schema matchers; `expect(body).toMatchSchema`
+  then does not exist, and a future fixture is silently missing.
+- **Fix:** `import { expect, test } from '@/fixtures'`.
+
+### 32. Data created in the steps of a test instead of a fixture (Medium)
+
+- **Why:** setup steps at the top of a test mix the precondition with the behaviour under test: a red
+  run then cannot say whether the product or the setup broke, and clean-up is skipped when the test
+  fails halfway.
+- **Fix:** a precondition fixture that creates the data through the API and deletes it after the test.
+
+### 33. A page object action without `@step` (Low)
+
+- **Why:** the report and the trace show raw clicks instead of `RegisterPage: create workspace`, and a
+  failure points into the page object instead of the spec line that called it.
+- **Fix:** `@step` on every public async method. A read polled by `expect.poll` may stay without it.
+
+### 34. `@regression` or a raw tag string (Low; Medium when a CI job selects by that tag)
+
+- **Why:** `@regression` selects nothing (regression is every test) and drifts from what runs; a typo
+  in a raw `'@smok'` drops the test out of a `--grep` run without any error.
+- **Fix:** `tag: [Tag.smoke, Tag.<domain>]` from `src/config/tags.ts`.
+
+### 35. A base class that wraps Playwright for page objects (Medium)
+
+- **Why:** a `BasePage` with `click`/`fill`/`waitFor` helpers hides Playwright's own waiting and error
+  messages, and every page inherits behaviour it does not need.
+- **Fix:** plain classes that take `page`; shared parts of the screen become components in `App`.
 
 ---
 

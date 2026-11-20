@@ -32,7 +32,7 @@ Output: 1. Burger analysis (framing → testing types → techniques → risks �
 
 ## Where the output goes
 
-Do not invent a new test home. Read the project's conventions first (CLAUDE.md, README, CONTRIBUTING,
+Do not invent a new test home. Read the project's conventions first (AGENTS.md, CLAUDE.md, README, CONTRIBUTING,
 existing test-plan or test-case folders) and use those. The levels map to destinations like this:
 
 | Destination | What goes there | Owner |

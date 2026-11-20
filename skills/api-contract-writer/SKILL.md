@@ -4,13 +4,13 @@ description: |
   Writes a small, honest set of API contract tests for one endpoint in a Playwright project that
   was set up by `pw-project-bootstrap`. Works on any product: the rules here are general, and
   everything particular to the product is read from, and written back to, the project's
-  `CLAUDE.md`. Reads the operation from the API description, probes the real endpoint, proposes
+  `AGENTS.md`. Reads the operation from the API description, probes the real endpoint, proposes
   three to six tests with a reason for each, writes them, runs them, proves they can fail, and
   records what it learned about the product.
   Trigger: "write API tests for POST /tickets", "contract test for this endpoint", "cover the
   users endpoints", "add API tests".
   Not for: setting up the project (use `pw-project-bootstrap`), browser tests.
-argument-hint: METHOD /path  (for example: GET /tickets/{id})
+argument-hint: "METHOD /path  (for example: GET /tickets/{id})"
 allowed-tools:
   - Read
   - Write
@@ -29,8 +29,9 @@ allowed-tools:
 You write contract tests for one endpoint at a time. The user is a QA engineer who knows what
 should be tested and may not write code. Your tests must be few, readable, and able to fail.
 
-This skill knows nothing about the product. What is particular about it lives in `CLAUDE.md` in
-the test folder (sections "Project profile" and "Test conventions"). Read it before anything else,
+This skill knows nothing about the product. What is particular about it lives in `AGENTS.md` in
+the test folder (sections "Project profile" and "Test conventions"; `CLAUDE.md` there only imports
+it). Read it before anything else,
 follow it when it conflicts with a default here, and add to it at the end. Never edit this skill
 to fit a project.
 
@@ -40,12 +41,13 @@ attachments), and when each is worth adding: [references/optional-layers.md](ref
 
 ## Step 1 — Read the project
 
-- `CLAUDE.md`: profile, conventions, roles, endpoints that must not be called.
-- `src/fixtures/index.ts`: the names you may use (`test`, `expect`, `Schemas`, `Body`, `unique`,
-  `clientFor`, `api`, `<role>Api`).
+- `AGENTS.md`: profile, conventions, roles, endpoints that must not be called.
+- `src/fixtures/`: the names you may use (`test`, `expect`, `Schemas`, `Body`, `unique`,
+  `clientFor`, `api`, `<role>Api`, and the precondition fixtures that exist). `src/config/tags.ts`:
+  the tags.
 - Two existing specs in `tests/api/`, if any: copy their style, naming and data handling.
 
-No `CLAUDE.md` or no fixtures: stop and say the project needs `pw-project-bootstrap` first.
+No `AGENTS.md` (or `CLAUDE.md`) or no fixtures: stop and say the project needs `pw-project-bootstrap` first.
 
 ## Step 2 — Read the operation
 
@@ -61,7 +63,8 @@ No description for this endpoint: say so and go to step 3 with the probe as the 
 
 ## Step 3 — Probe the real endpoint
 
-Send one valid request with the role that should succeed (`node -e` with `fetch`, token from
+Send one valid request with the role that should succeed (`node -e` with `fetch`, never `curl`:
+`node` behaves the same on every OS and is already allowed; token from
 `.auth/<role>.json`; never print the token). You may also send one request per refusal you plan
 to test, to see its status and error body. For an operation that writes, create only data you
 will delete, and only if the profile allows writing in this environment.
@@ -72,7 +75,7 @@ appears. Report findings in step 4. Do not shape the test to match a wrong answe
 
 An error code or message that you saw but the description does not state is **observed, not
 documented**. List such values in step 4 under their own heading and ask the user to confirm that
-they are intended; they become part of the contract only then, and go into `CLAUDE.md`.
+they are intended; they become part of the contract only then, and go into `AGENTS.md`.
 
 ## Step 4 — Propose the tests and wait
 
@@ -97,33 +100,45 @@ Show the user a table and stop:
 | # | Test | Why it earns its place | Tag |
 |---|---|---|---|
 
-Under it: what you deliberately left out and why, findings from the probe, and anything you
-could not determine. Change the list as the user asks. Write only after a clear yes.
+Under it: the fixtures that will prepare data, what you deliberately left out and why, findings
+from the probe, and anything you could not determine. Change the list as the user asks. Write only after a clear yes.
 
 ## Step 5 — Write
 
 - File: `tests/api/<domain>/<verb>-<resource>.spec.ts`; the domain is the first path segment unless
-  the profile says otherwise. A new folder becomes a new Playwright project by itself.
+  the profile says otherwise. A new folder becomes a new Playwright project by itself. When no test
+  in the domain needs a role's token, add the domain to `noLogin` in `playwright.config.ts`, so a
+  failed login does not stop it.
 - Test titles start with the expected status: `'404: unknown id'`.
-- Tags: the successful call gets `@smoke`; everything gets `@regression`.
+- Imports: `test`, `expect`, `Schemas`, `Body`, `unique` from `@/fixtures`; `Tag` from
+  `@/config/tags`; builders from `@test-data/…`. Never `@playwright/test` in a spec, never a
+  relative path into `src/`.
+- Tags from `Tag`: the successful call gets `tag: [Tag.smoke, Tag.<domain>]`, the others
+  `tag: [Tag.<domain>]`. Never `@regression` (regression is every test) and never a raw `'@…'`
+  string. A domain without a tag gets one in `src/config/tags.ts` first.
 - Order inside a test: status, then schema, then values.
 - An assertion after a second request carries a message that names it, so a red run explains
   itself: `expect(body.priority, 'GET after PATCH: priority was not stored').toBe(data.priority)`.
 - Type every body: `const body: Schemas['Ticket'] = await response.json()`; request bodies with
   `Body<'/tickets', 'post'>`.
-- Data: each spec creates what it needs and deletes it, using `clientFor(request, role)` in
-  `beforeAll` / `afterAll`. Names through `unique()`. Never depend on data from another spec or on
-  seed data that anyone can edit. Never call an endpoint the profile lists as not to be called.
-- The same helper needed in a second spec moves to `src/data/<resource>.ts`. Not before. Then rerun
-  the spec you moved it out of and update the convention line in `CLAUDE.md`.
+- Data: what a test needs before it starts (a project, a ticket, a registered account) comes from a
+  precondition fixture in `src/fixtures/<domain>.fixture.ts`, merged in `src/fixtures/index.ts`: it
+  creates the data through the API and deletes it after the test. A spec file never starts with
+  steps that create data. `clientFor(request, role)` in `beforeAll` only for read-only data a whole
+  file shares. Names through `unique()`. Never depend on data from another spec or on seed data
+  that anyone can edit. Never call an endpoint the profile lists as not to be called.
+- Request bodies a second spec needs come from a builder in `test-data/<resource>.ts`; calls a second
+  spec needs move to a client in `src/api/<resource>.ts`. Not before. Then rerun the spec you moved
+  it out of and update the convention line in `AGENTS.md`.
 - A value that must fit a pattern (`unique()` does not fit `^[A-Z]{2,6}$`) gets a small generator in
-  `src/data/`; record it in `CLAUDE.md`.
-- No new dependency, no change to generated files, the config or the fixtures. If the fixtures
-  lack something, say so and ask.
+  `src/utils/` with a unit test next to it; record it in `AGENTS.md`.
+- No new dependency and no change to generated files or the config. A new precondition fixture is
+  fine once the user agreed to it in step 4; any other change to the fixtures: say so and ask.
 
 ## Step 6 — Run and classify every red test
 
-Run the type check and the new spec. For each failure decide which it is and say it in these words:
+Run `npm run typecheck`, `npm run lint` and the new spec. Fix every lint error in the files you
+touched. For each failure decide which it is and say it in these words:
 
 - **Test defect:** your mistake. Fix the test.
 - **Product defect:** the API breaks its own description or a stated rule. Leave the assertion as
@@ -143,13 +158,13 @@ it, see it fail for that reason, and restore it. A test that stays green with a 
 checks nothing: fix it or delete it. Restore by undoing your own edit, then confirm with a run.
 Tell the user in plain words what each test would catch ("fails if the status becomes 403").
 Finish with a run that gives the same result as step 6 (green, or red only for reported product
-defects) and the type check.
+defects), the type check and lint.
 
 ## Step 8 — Record what you learned
 
 Report: the tests written, findings, and the commands to run them.
 
-Then propose additions to `CLAUDE.md`, as exact lines, and add them after a yes:
+Then propose additions to `AGENTS.md`, as exact lines, and add them after a yes:
 
 - to **Project profile**: facts about the product you had to discover (an error code, a rule, a
   limit, a field that behaves unexpectedly, an endpoint that is unsafe to call);

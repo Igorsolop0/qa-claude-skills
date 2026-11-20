@@ -29,7 +29,7 @@ If the user shares a whole directory, scan all `.spec.ts` / `.test.ts` files; ot
 5. **Don't fabricate.** If a category has no findings, omit it. Better three sharp findings than ten wobbly ones. Always include a "What's good" section — tells the author what to keep.
 6. **Mutation check.** Run § Mutation check only when the user asks for it or for a full review: it runs live tests, which may create real accounts or data on the environment. Otherwise end the report with one line that offers it and names those side effects. Static review says a test *looks* right; a mutation proves it can fail.
 
-If the test folder has a `CLAUDE.md` project profile, read it first: the run command, the test id convention, the env that turns reporting off, and the fixtures that create data or set auth come from there.
+If the test folder has an `AGENTS.md` project profile (or a `CLAUDE.md` that imports it), read it first: the run command, the test id convention, the env that turns reporting off, the fixtures that create data or set auth, and whether the project uses the default structure (then walk § Project structure of the catalog) come from there.
 
 ## Money-domain context
 

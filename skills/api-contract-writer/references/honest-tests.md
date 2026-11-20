@@ -33,7 +33,7 @@ was green while the product was broken.
 - `beforeAll` runs once per worker, not once per file. Data created there may exist several
   times; tests must not count on being alone.
 - An id for "not found": a value far outside the real range, or an id that was just deleted.
-  Record the choice in `CLAUDE.md`.
+  Record the choice in `AGENTS.md`.
 - Foreign data: create it with another account when the product separates accounts. If only one
   account exists, say the test is not possible yet instead of faking it.
 

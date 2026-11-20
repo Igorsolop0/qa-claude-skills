@@ -6,7 +6,7 @@ person who does not write code can still read.
 
 The layers below are for a suite that has outgrown it. Add one only when its trigger is true,
 or when the project already has it. **A layer that exists in the project wins over the default
-here**; record its shape in `CLAUDE.md` under "Test conventions" so the next spec repeats it.
+here**; record its shape in `AGENTS.md` under "Test conventions" so the next spec repeats it.
 
 | Layer | Add it when | Not before |
 |---|---|---|
@@ -49,7 +49,7 @@ export class Api {
 ## Builders
 
 ```ts
-// src/data/create-ticket.builder.ts
+// test-data/create-ticket.builder.ts
 export class CreateTicketBuilder {
   private body: Body<'/tickets', 'post'>;
 

@@ -5,7 +5,9 @@ description: |
   of waiting for a detailed prompt. Checks the machine, inspects the repository, asks a short series
   of questions (where the tests live, what is tested, Swagger link, auth, test users, how runs are
   sliced, CI), shows a plan, then generates a working project: config with per-domain projects,
-  env handling, OpenAPI type generation, API client, auth setup, one green health test, CI workflow.
+  env handling, OpenAPI type generation, API client, fixtures merged into one `test`, `@/` imports,
+  tag constants, ESLint with the project's architecture rules, auth setup, one green health test,
+  CI workflow, and an `AGENTS.md` with the project profile and the skill routing.
   Trigger: "set up Playwright", "bootstrap Playwright project", "start test automation",
   "create a Playwright project", "new API test project", "I have no automation yet".
   Not for: adding tests to an existing Playwright project (use `api-contract-writer` or
@@ -64,7 +66,13 @@ Run these checks before anything else and report them as one short list.
   `localhost` and private hosts, which the web fetch tool does not.
 - Git: `git --version`, and whether the current folder is inside a repository
   (`git rev-parse --show-toplevel`). Report the repository root: it may be an unrelated parent.
-- Write access: can a file be created in the target folder (a temporary probe file is fine).
+- GitHub CLI: `gh --version`, only to tell the user whether publishing the project later will work
+  (`gh auth login`, `gh repo create`). Missing is not a blocker for the bootstrap.
+- Bun: `bun --version`, only for the mutation check of `pw-test-review` and the collector of
+  `pw-failure-triage`. Missing is not a blocker; name the install command for this OS.
+- Write access: `node -e "require('fs').accessSync('.', require('fs').constants.W_OK)"` in the
+  target folder (no output means writable). Use `node`, not `touch` or `mkdir`: it works the same on
+  every OS and needs no extra permission.
 - Windows only: `git config --get core.longpaths`. If not `true`, tell the user to run
   `git config --global core.longpaths true`.
 - Terminal: if the session runs inside an IDE-embedded terminal that is not VS Code, recommend a
@@ -123,11 +131,11 @@ Rounds (details in the reference):
    tests were chosen. As soon as the description is known, read it and detect again: login type,
    roles, limits and a health endpoint often answer the next questions. If it has an operation
    that creates users, propose "another role creates it" for roles without an account. Note
-   operations that wipe data or users and write them into `CLAUDE.md` as not to be called by tests.
+   operations that wipe data or users and write them into `AGENTS.md` as not to be called by tests.
 3. **Users and data.** Which roles the tests need; do tests register their own users or use
    existing ones; is there a limit on login or registration; is the environment shared with other
    people, and may tests create and delete data there.
-4. **Running.** How runs are sliced (by domain is the default; smoke and regression are tags); CI
+4. **Running.** How runs are sliced (by domain is the default; smoke is a tag, regression is every test); CI
    provider and triggers (manual button, nightly, on pull request); browsers; extra reporters.
 
 ## Phase 4 — Plan
@@ -147,36 +155,47 @@ Change the plan as many times as the user asks. Generate only after an explicit 
 
 Follow [references/templates.md](references/templates.md). Order matters:
 
-1. Folder, `package.json`, `tsconfig.json` (strict), `.gitignore` entries, install the pinned
-   dev dependencies from the templates. Install browsers only when browser tests were chosen; an
-   API-only project installs none.
+1. Folder, `package.json`, `tsconfig.json` (strict, with the `@/` and `@test-data/` paths),
+   `.gitignore` entries, install the pinned dev dependencies from the templates. Install browsers
+   only when browser tests were chosen; an API-only project installs none.
 2. `.env.example` with every variable and a comment. Create `.env` and write the non-secret values
    into it yourself (base URL, API description link). Credentials stay empty for the user. Confirm
    with `git check-ignore` that `.env` is ignored.
 3. `playwright.config.ts`: a `setup` project, one `api-<domain>` project per folder under
-   `tests/api/` (derived from the folders, never listed by hand), browser projects if chosen.
+   `tests/api/` (derived from the folders, never listed by hand), and the `unit` project for
+   `src/utils/`. The browser project appears with the first browser test (`e2e-writer`).
    A project whose required variables are missing fails with a message that names them.
 4. Type generation: `scripts/generate-api-types.mjs` and the `types:api` script. It writes the types
    and `api-schemas.json` for the run-time schema check. Run it once if a Swagger link or file was
    given. Swagger 2.0 is converted to OpenAPI 3 first. No description
    available: skip, and note in the README that schemas will be written from real responses.
 5. API layer from the templates, names unchanged: base client with `failOnStatusCode: false`,
-   `toMatchSchema` / `toMatchArrayOf` matchers, fixtures.
+   `toMatchSchema` / `toMatchArrayOf` matchers, `src/fixtures/api.fixture.ts` merged by
+   `src/fixtures/index.ts` (the one `test` and `expect` every spec imports from `@/fixtures`),
+   `src/config/tags.ts`, `src/utils/unique.ts` with its unit test.
 6. Auth setup from the template: one login per role in the `setup` project, state saved under `.auth/` (ignored by
    git). Users are created or logged in once per run, never per test.
-7. One health test in `tests/api/health/`, tagged `@smoke`.
-8. CI workflow for the detected provider, triggers as chosen. A manual trigger with `project` and
-   `grep` inputs is always included.
-9. `README.md` and `CLAUDE.md` inside the test folder. `CLAUDE.md` holds the decisions from the
-   interview, the project profile and the test conventions. The skills are universal; everything
-   project-specific lives in this file, and later skills read it instead of asking again.
+7. One health test in `tests/api/health/`, tagged `Tag.smoke`.
+8. `eslint.config.mjs` from the templates and the `lint` script: Playwright's recommended rules plus
+   the architecture rules (specs take `test`/`expect` from `@/fixtures`, never build page objects,
+   never act on a locator; `@` imports; `@step` on page object methods).
+9. CI workflow for the detected provider, triggers as chosen: type check, lint, tests. A manual
+   trigger with `project` and `grep` inputs is always included. Addresses go into the workflow as
+   plain values; only credentials are secrets.
+10. `README.md`, `AGENTS.md` and `CLAUDE.md` inside the test folder. `AGENTS.md` holds the decisions
+   from the interview, the project profile, the test conventions and the skill routing table;
+   `CLAUDE.md` is the one line `@AGENTS.md`, so Claude Code loads it. The skills are universal;
+   everything project-specific lives in `AGENTS.md`, and later skills read it instead of asking
+   again.
 
 Do not create empty folders, empty domain projects, placeholder specs, or extra documentation
-files. Record the first domain name in `CLAUDE.md`; its folder appears with its first spec.
+files. Record the first domain name in `AGENTS.md` and its tag in `src/config/tags.ts`; its folder
+appears with its first spec.
 
 ## Phase 6 — Verify and hand off
 
-- Run the type check and `npx playwright test --list`.
+- Run `npm run typecheck`, `npm run lint` and `npx playwright test --list`. Lint and type errors
+  in generated files are yours: fix them before going on.
 - Run the health test first (`npx playwright test tests/api/health`); it needs no account. Green is the definition of done.
   Red: read the report, fix what is yours, and say clearly when the cause is access, VPN or data.
 - Ask the user to add emails and passwords to `.env`. Tell them how to open it: it is a hidden
@@ -184,8 +203,16 @@ files. Record the first domain name in `CLAUDE.md`; its folder appears with its 
 - A role without an account is not a failure of the bootstrap. Name the role, say which tests will
   wait for it, and offer the way out the API allows (ask the team for an account, or let the setup
   of another role create it).
-- Print the command sheet: run everything, run one domain, run smoke, open the report,
-  regenerate types.
+- Print the command sheet: run everything, run one domain, run smoke, run the unit tests, lint,
+  open the report, regenerate types. Show "one domain" with a project that exists now
+  (`--project=api-health`) and say that `api-<domain>` appears with the domain's first spec. For a separate repository add the two commands that publish it
+  on GitHub: `gh auth login`, then `gh repo create <name> --private --source . --push` (the push
+  starts the CI run when that trigger was chosen). When a role needs a secret, the first run would
+  fail without it: create the repository without `--push`, add the secrets (`gh secret set
+  QA_ADMIN_EMAIL`, …), then `git push -u origin main`.
+- Tests inside a product repository: tell the user to restart Claude Code from the test folder
+  before calling the next skill, so it loads `CLAUDE.md` there and runs the commands in the right
+  place.
 - Name the next step: "call `api-contract-writer` with an endpoint", then `e2e-writer` with a scenario
   when browser tests were chosen.
 
@@ -194,8 +221,9 @@ files. Record the first domain name in `CLAUDE.md`; its folder appears with its 
 - No file is written before the plan is approved.
 - No secret in chat, code, README, or a committed file.
 - Never overwrite an existing Playwright project or delete existing tests.
-- A separate repository is created locally with `git init` only. Creating a remote or pushing is
+- A separate repository is created locally with `git init -b main` only (the CI push trigger listens
+  to `main`). Creating a remote or pushing is
   the user's step.
 - Do not add a `pull_request` trigger that blocks merges unless the user chose it.
 - If the environment is shared or close to production, generate no test that deletes or mutates
-  data it did not create, and write that rule into `CLAUDE.md`.
+  data it did not create, and write that rule into `AGENTS.md`.

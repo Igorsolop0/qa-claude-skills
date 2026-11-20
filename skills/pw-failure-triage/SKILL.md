@@ -29,7 +29,7 @@ The design borrows from Playwright's own agents and deliberately departs from th
 
 ## Project profile first
 
-Read `CLAUDE.md` in the test folder before anything else. Take from it, and ask once for what is
+Read `AGENTS.md` in the test folder (or the `CLAUDE.md` that imports it) before anything else. Take from it, and ask once for what is
 missing (then propose the lines to add at the end):
 
 - **Run command** for one spec and one project, and the env that keeps a rerun out of the test-
@@ -118,7 +118,7 @@ Leave `infra` and `product-bug` code untouched. A known product bug keeps its fa
 
 Use [references/report-template.md](references/report-template.md): one table row per failure
 (test, project, class, decisive evidence, action), then the proposed diffs and the drafted issues.
-Answer in the language the user writes in. End with the lines you propose for `CLAUDE.md`, if any.
+Answer in the language the user writes in. End with the lines you propose for `AGENTS.md`, if any.
 
 ## Guardrails
 

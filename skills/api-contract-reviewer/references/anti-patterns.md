@@ -179,10 +179,12 @@ told apart from real configuration while there is no automated cleanup.
 
 ## Medium
 
-### M1 — Builder bypassed for payloads with > 3 fields
+### M1 — Builder bypassed for a payload that several specs repeat
 
 **Mechanism:** Inline payloads duplicate field names across specs, so one contract change means
-editing every call site instead of one Builder default.
+editing every call site instead of one Builder default. Flag it when the same body (more than three
+fields) appears in a second spec; one inline payload in one spec is fine, which is what
+`api-contract-writer` writes.
 
 ---
 
