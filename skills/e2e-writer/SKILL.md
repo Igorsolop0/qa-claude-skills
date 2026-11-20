@@ -1,20 +1,17 @@
 ---
 name: e2e-writer
 description: |
-  Writes one or two honest browser tests for one user scenario in a Playwright project that was
-  set up by `pw-project-bootstrap`, and the page objects they need. Works on any product: the
-  rules here are general, and everything particular to the product is read from, and written back
-  to, the project's `AGENTS.md`. Follows the page-object structure the project already has, or sets
-  up the default one: an `App` container of page objects handed to tests by fixtures (`app` for a
-  visitor, `<role>App` for a fresh account, `shared<Role>App` for read-only tests), page objects
-  with locators, user-intent methods, `expect*` checks and `@step` reporting. Looks at the real
-  page before naming a locator, prepares data through the API in fixtures, proposes the tests and
-  waits, writes them, lints and runs them, proves they can fail, and records what it learned.
-  Trigger: "write a browser test for creating a ticket", "e2e test for this scenario", "cover the
-  checkout flow in the browser", "add a UI test", "page object for this page", "new spec",
-  "add page object".
-  Not for: setting up the project (use `pw-project-bootstrap`), API tests (use
-  `api-contract-writer`), reviewing tests (use `pw-test-review`), a red run (use `pw-failure-triage`).
+  Writes one or two honest browser tests for one user scenario, and the page objects they need, in
+  a Playwright project set up by `pw-project-bootstrap`. Reads and updates the project's
+  `AGENTS.md`. Follows the page-object structure the project has, or sets up the default: an `App`
+  of page objects from fixtures (`app`, `<role>App`, `shared<Role>App`), page objects with
+  locators, user-intent methods, `expect*` checks and `@step`. Looks at the real page before naming
+  a locator, prepares data in fixtures, proposes the tests and waits, writes, lints and runs them,
+  proves they can fail.
+  Trigger: "write a browser test for creating a ticket", "e2e test for this scenario", "add a UI
+  test", "page object for this page", "new spec", "add page object".
+  Not for: setting up the project (`pw-project-bootstrap`), API tests (`api-contract-writer`),
+  reviews (`pw-test-review`), a red run (`pw-failure-triage`).
 argument-hint: "the scenario in one sentence (for example: a visitor creates a workspace and lands on the ticket list)"
 allowed-tools:
   - Read
@@ -99,9 +96,12 @@ Skip this step when `tests/e2e/` already has a spec.
 Tell the user in three lines what will be added, then add it from the templates:
 
 1. `npx playwright install chromium` (it does nothing when the browser is already there).
-2. `src/ui/step.ts`, `src/ui/app.ts`, and `src/config/urls.ts` if it is missing.
+2. `src/ui/step.ts`, `src/config/urls.ts`, and `src/ui/app.ts` with no getters yet.
 3. `scripts/page-snapshot.mjs` and the `test:e2e` script.
 4. The `e2e` project in `playwright.config.ts`.
+5. CI, if the workflow has no browser step yet (the project was API only): add
+   `npx playwright install --with-deps chromium` before the tests, and `WEB_URL` to its `env` when
+   the web app has another address.
 
 Then, in this order, because the fixtures need facts you have not seen yet:
 
@@ -110,12 +110,18 @@ Then, in this order, because the fixtures need facts you have not seen yet:
 2. Find out how the browser keeps a session: with the throwaway spec from the templates, sign in
    or register through the page, and print the cookies and the storage keys. Compare them with what
    the login or registration endpoint returns.
-3. Write `src/fixtures/app.fixture.ts` from the template: `createAccount` (how the API makes an
-   account) and `addSession` (how a browser becomes signed in without the login form). Merge it in
-   `src/fixtures/index.ts`.
-4. With the throwaway spec, open the first page after login as `<role>App` and print it: it must
-   show the signed-in state. Write that page with its `expectOpen()`.
-5. Replace the "Browser" line in `AGENTS.md`.
+3. Write `src/fixtures/app.fixture.ts` from the template and merge it in `src/fixtures/index.ts`.
+   It always has `app`. `account` (with `test-data/accounts.ts`), `<role>App` and `shared<Role>App`,
+   with `createAccount` (how the API makes an account) and `addSession` (how a browser becomes
+   signed in without the login form),
+   come with the first scenario that needs a signed-in user or an existing account; reuse a
+   precondition fixture another skill already wrote (for example a registered account) instead of
+   making a second one.
+4. When `<role>App` exists: with the throwaway spec, open the first page after login as `<role>App`
+   and print it: it must show the signed-in state. Write that page with its `expectOpen()`.
+5. Replace the "Browser" line in `AGENTS.md` (this one line needs no approval: it records what you
+   just set up). The `e2e` project depends on `setup` only when a `shared<Role>App` uses the role
+   saved there.
 
 A product whose API cannot create accounts and whose session cannot be set from outside: say so,
 and fall back to one login through the login page per role in a setup project (templates, last
@@ -255,7 +261,8 @@ Tell the user in plain words what each test would catch.
 
 Report: the tests, the page objects and fixtures added, findings, the commands to run them.
 
-Then propose additions to `AGENTS.md`, as exact lines, and add them after a yes:
+Then propose additions to `AGENTS.md`, as exact lines, and add them only after a yes. Do not
+rewrite other lines on your own:
 
 - **Project profile:** how the screen behaves where you had to find out (where the session lives,
   a list that loads after the page, a dialog that is not a browser dialog, a page without test ids,

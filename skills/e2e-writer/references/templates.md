@@ -17,7 +17,7 @@ src/
     pages/<name>.page.ts
     components/<name>.component.ts  # only when a second page shows the same part
   fixtures/app.fixture.ts           # app, account, <role>App, shared<Role>App; merged in index.ts
-test-data/<topic>.ts                # input data builders, if the scenario types data
+test-data/accounts.ts               # input data builders (the account fixture uses this one)
 tests/e2e/<area>/<scenario>.spec.ts
 ```
 
@@ -238,6 +238,9 @@ export class SiteHeader {
 
 ## `src/ui/app.ts`
 
+In step 2 it starts with no getters (keep `#members`, `#member` and `createApp`); each page object
+adds its getter when it is written. The filled version:
+
 ```ts
 import type { Page } from '@playwright/test';
 import { SiteHeader } from './components/site-header.component';
@@ -318,6 +321,13 @@ async function createAccount(api: BaseClient): Promise<Account> {
   return { ...data, token: body.token, user: body.user };
 }
 
+/** The signed-in user of a token, as the web app's session needs it. */
+async function readUser(api: BaseClient): Promise<Schemas['User']> {
+  const response = await api.send('GET', '/me');
+  expect(response.status(), 'the saved session is no longer accepted: run the setup project').toBe(200);
+  return response.json();
+}
+
 /** The web app keeps its session in `localStorage['bugboard.session']` as `{ token, user }`. */
 async function addSession(context: BrowserContext, session: { token: string; user: Schemas['User'] }): Promise<void> {
   await context.addInitScript((value) => localStorage.setItem('bugboard.session', value), JSON.stringify(session));
@@ -354,14 +364,14 @@ export const test = apiTest.extend<AppFixtures>({
   },
   account: async ({ api }, use) => {
     await use(await createAccount(api));
+    // Delete the account here when the API allows it. This product refuses to delete one's own
+    // account (409 CANNOT_DELETE_SELF), so it stays in its private workspace, marked `qa-pw-`.
   },
   adminApp: async ({ browser, account }, use) => {
     await signedInApp(browser, account, use);
   },
   sharedAdminApp: async ({ browser, adminApi }, use) => {
-    const response = await adminApi.send('GET', '/me');
-    expect(response.status(), 'the saved admin session is no longer accepted: run the setup project').toBe(200);
-    const user: Schemas['User'] = await response.json();
+    const user = await readUser(adminApi);
     await signedInApp(browser, { token: readAuthState('admin')?.token ?? '', user }, use);
   },
 });
@@ -372,7 +382,11 @@ export const test = apiTest.extend<AppFixtures>({
   at once. Contexts made this way do not take the project's `use` options (viewport, locale): set
   them in `browser.newContext({ ... })` when the product needs them.
 - One `<role>App` and one `shared<Role>App` per role in `Role`. A product without roles has `app`,
-  `account`, `userApp`, `sharedUserApp`.
+  `account`, `userApp`, `sharedUserApp`. A role that another role creates (an admin adds a tester)
+  gets its own `create<Role>Account(adminApi)` in the adapt block, calling the endpoint that creates
+  users, and a `<role>Account` fixture next to `account`.
+- `readUser` and `addSession` follow the product: here a session is `{ token, user }`, so the user
+  is read once from the API.
 
 Merge it into `src/fixtures/index.ts`, and export the `Account` type there:
 
@@ -399,9 +413,9 @@ export interface NewAccount {
   password: string;
 }
 
-/** A new account nobody has registered yet. `qa-pw-` marks what tests created on a shared environment. */
+/** A new account nobody has registered yet; `unique()` gives it the `qa-pw-` mark. */
 export function newAccount(): NewAccount {
-  const id = unique('qa-pw');
+  const id = unique('account');
   return { name: 'QA autotest', email: `${id}@example.test`, password: `pw-${id}` };
 }
 ```
@@ -418,6 +432,8 @@ Add to `projects`, and `devices` to the `@playwright/test` import. It depends on
             name: 'e2e',
             testDir: './tests/e2e',
             use: { ...devices['Desktop Chrome'] },
+            // Only while a test takes `shared<Role>App`, which reuses the role the setup saved.
+            // A project without a `setup` project, or without such a test, has `dependencies: []`.
             dependencies: ['setup'],
           },
         ]
@@ -499,10 +515,10 @@ test('Visitor cannot create a workspace with an email that is already registered
   await app.registerPage.expectFormError(REGISTER_COPY.takenEmail);
 });
 
-test('Admin sees the demo project ticket list right after sign-in', async ({ sharedAdminApp: app }) => {
+test('Admin opens the ticket list and can start a new ticket', { tag: [Tag.auth] }, async ({ sharedAdminApp: app }) => {
   await app.ticketsPage.open();
 
-  await expect(app.ticketsPage.row('Login button does nothing on Safari')).toBeVisible();
+  await expect(app.ticketsPage.newTicketButton).toBeVisible();
 });
 ```
 
@@ -516,13 +532,13 @@ test('Admin sees the demo project ticket list right after sign-in', async ({ sha
 
 For a page the snapshot script cannot reach: it needs a session, prepared data, or an action first,
 and for finding where the session lives (step 2 of the skill). Put it in `tests/e2e/_look.spec.ts`,
-run it with `npx playwright test tests/e2e/_look.spec.ts --project=e2e`, and delete the file when done.
+run it with `npx playwright test tests/e2e/_look.spec.ts --project=e2e --no-deps`, and delete the
+file when done. ESLint ignores this one file name, so plain locators are fine in it.
 
 ```ts
 import { test } from '@/fixtures';
 
 // Throwaway: look at a page that needs a session, data or an action first. Delete this file when done.
-// eslint-disable-next-line playwright/expect-expect
 test('look', async ({ app }) => {
   test.setTimeout(30_000);
   await app.registerPage.open();

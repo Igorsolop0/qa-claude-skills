@@ -68,7 +68,11 @@ Run these checks before anything else and report them as one short list.
   (`git rev-parse --show-toplevel`). Report the repository root: it may be an unrelated parent.
 - GitHub CLI: `gh --version`, only to tell the user whether publishing the project later will work
   (`gh auth login`, `gh repo create`). Missing is not a blocker for the bootstrap.
-- Write access: can a file be created in the target folder (a temporary probe file is fine).
+- Bun: `bun --version`, only for the mutation check of `pw-test-review` and the collector of
+  `pw-failure-triage`. Missing is not a blocker; name the install command for this OS.
+- Write access: `node -e "require('fs').accessSync('.', require('fs').constants.W_OK)"` in the
+  target folder (no output means writable). Use `node`, not `touch` or `mkdir`: it works the same on
+  every OS and needs no extra permission.
 - Windows only: `git config --get core.longpaths`. If not `true`, tell the user to run
   `git config --global core.longpaths true`.
 - Terminal: if the session runs inside an IDE-embedded terminal that is not VS Code, recommend a
@@ -200,9 +204,15 @@ appears with its first spec.
   wait for it, and offer the way out the API allows (ask the team for an account, or let the setup
   of another role create it).
 - Print the command sheet: run everything, run one domain, run smoke, run the unit tests, lint,
-  open the report, regenerate types. For a separate repository add the two commands that publish it
+  open the report, regenerate types. Show "one domain" with a project that exists now
+  (`--project=api-health`) and say that `api-<domain>` appears with the domain's first spec. For a separate repository add the two commands that publish it
   on GitHub: `gh auth login`, then `gh repo create <name> --private --source . --push` (the push
-  starts the CI run when that trigger was chosen).
+  starts the CI run when that trigger was chosen). When a role needs a secret, the first run would
+  fail without it: create the repository without `--push`, add the secrets (`gh secret set
+  QA_ADMIN_EMAIL`, …), then `git push -u origin main`.
+- Tests inside a product repository: tell the user to restart Claude Code from the test folder
+  before calling the next skill, so it loads `CLAUDE.md` there and runs the commands in the right
+  place.
 - Name the next step: "call `api-contract-writer` with an endpoint", then `e2e-writer` with a scenario
   when browser tests were chosen.
 
@@ -211,7 +221,8 @@ appears with its first spec.
 - No file is written before the plan is approved.
 - No secret in chat, code, README, or a committed file.
 - Never overwrite an existing Playwright project or delete existing tests.
-- A separate repository is created locally with `git init` only. Creating a remote or pushing is
+- A separate repository is created locally with `git init -b main` only (the CI push trigger listens
+  to `main`). Creating a remote or pushing is
   the user's step.
 - Do not add a `pull_request` trigger that blocks merges unless the user chose it.
 - If the environment is shared or close to production, generate no test that deletes or mutates

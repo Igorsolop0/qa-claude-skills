@@ -63,7 +63,8 @@ No description for this endpoint: say so and go to step 3 with the probe as the 
 
 ## Step 3 — Probe the real endpoint
 
-Send one valid request with the role that should succeed (`node -e` with `fetch`, token from
+Send one valid request with the role that should succeed (`node -e` with `fetch`, never `curl`:
+`node` behaves the same on every OS and is already allowed; token from
 `.auth/<role>.json`; never print the token). You may also send one request per refusal you plan
 to test, to see its status and error body. For an operation that writes, create only data you
 will delete, and only if the profile allows writing in this environment.
@@ -105,7 +106,9 @@ from the probe, and anything you could not determine. Change the list as the use
 ## Step 5 — Write
 
 - File: `tests/api/<domain>/<verb>-<resource>.spec.ts`; the domain is the first path segment unless
-  the profile says otherwise. A new folder becomes a new Playwright project by itself.
+  the profile says otherwise. A new folder becomes a new Playwright project by itself. When no test
+  in the domain needs a role's token, add the domain to `noLogin` in `playwright.config.ts`, so a
+  failed login does not stop it.
 - Test titles start with the expected status: `'404: unknown id'`.
 - Imports: `test`, `expect`, `Schemas`, `Body`, `unique` from `@/fixtures`; `Tag` from
   `@/config/tags`; builders from `@test-data/…`. Never `@playwright/test` in a spec, never a

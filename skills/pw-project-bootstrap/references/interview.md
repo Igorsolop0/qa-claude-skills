@@ -12,7 +12,7 @@ Skip a question when detection answered it; show the detected value in the plan 
 | Option | Meaning | Produces |
 |---|---|---|
 | In this repository (default when a product repo is open) | Tests sit next to the code they check and change in the same pull request | A test folder with its own `package.json` |
-| In a separate repository | Tests have their own history and access rights; no link to product pull requests | The project is the repository root, `git init` there |
+| In a separate repository | Tests have their own history and access rights; no link to product pull requests | The project is the repository root, `git init -b main` there |
 
 Why the default: all three projects keep tests in the product repository. A separate repository
 fits when the QA has no write access to the product repo or tests cover several products.
@@ -130,7 +130,7 @@ Detected provider is the default; nothing detected: ask which one (GitHub Action
 none yet). Ask whether the CI can reach the test environment: `localhost` or a VPN-only address
 cannot run on hosted runners (default: decide from the base URL; `localhost` means no). Multi-select for triggers:
 - Manual button with `project` and `grep` inputs (always on)
-- On every push to the main branch (a new repository shows its first green run at once; lint runs too)
+- On every push to the main branch (a new repository shows its first green run at once when no role needs a secret; lint runs too)
 - Nightly
 - On pull request (warn: red tests will block merges; start without it)
 

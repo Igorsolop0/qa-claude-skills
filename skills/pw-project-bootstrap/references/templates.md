@@ -117,6 +117,7 @@ const apiDomains = fs
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name);
 // Folders whose tests need no login: they must stay green when an account is missing.
+// A domain whose tests use only `api` (no token) goes here too, so a failed login does not stop it.
 const noLogin = new Set(['health']);
 const utilsDir = path.join(__dirname, 'src/utils');
 
@@ -125,7 +126,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  // `results.json` is what `pw-failure-triage` reads when a run goes red.
+  reporter: [['list'], ['html', { open: 'never' }], ['json', { outputFile: 'test-results/results.json' }]],
   use: {
     // The trailing slash keeps a path in BASE_URL (https://host/api/v1) when requests are resolved.
     baseURL: process.env.BASE_URL?.replace(/\/*$/, '/'),
@@ -356,9 +358,12 @@ run without any error; a typo in `Tag.smok` fails the type check.
 ```ts
 import { randomUUID } from 'node:crypto';
 
-/** A value that does not repeat between runs and parallel workers: `unique('ticket')`. */
-export function unique(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${randomUUID().slice(0, 4)}`;
+/** Marks what tests create, so leftovers on a shared environment can be found and filtered. */
+export const TEST_DATA_PREFIX = 'qa-pw';
+
+/** A value that does not repeat between runs and parallel workers: `unique('ticket')` → `qa-pw-ticket-…`. */
+export function unique(name: string): string {
+  return `${TEST_DATA_PREFIX}-${name}-${Date.now().toString(36)}-${randomUUID().slice(0, 4)}`;
 }
 ```
 
@@ -366,11 +371,11 @@ export function unique(prefix: string): string {
 import { expect, test } from '@playwright/test';
 import { unique } from './unique';
 
-test('unique keeps the prefix and never repeats', () => {
+test('unique marks the value as test data, keeps the name and never repeats', () => {
   const values = new Set(Array.from({ length: 50 }, () => unique('ticket')));
 
   expect(values.size).toBe(50);
-  for (const value of values) expect(value).toMatch(/^ticket-[a-z0-9]+-[a-f0-9]{4}$/);
+  for (const value of values) expect(value).toMatch(/^qa-pw-ticket-[a-z0-9]+-[a-f0-9]{4}$/);
 });
 ```
 
@@ -441,6 +446,12 @@ export const test = base.extend<ApiFixtures>({
   testerApi: async ({ request }, use) => use(clientFor(request, 'tester')),
 });
 ```
+
+No API description: drop the `../types/api` import, and replace the two types with
+`export type Schemas = Record<string, any>;` and
+`export type Body<_Path extends string, _Method extends string> = Record<string, unknown>;`.
+Tests then type response bodies with interfaces in `test-data/`, written from real responses, and
+schemas are passed to `toMatchSchema` as objects.
 
 ## `src/fixtures/index.ts`
 
@@ -521,7 +532,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 import { BaseClient } from '@/api/base-client';
-import { type AuthState, authFile, expect, type Role, readAuthState, test as setup } from '@/fixtures';
+import { type AuthState, authFile, expect, type Role, readAuthState, test as setup, unique } from '@/fixtures';
 
 // ---- Adapt this block to the API description. Nothing below it is project-specific. ----
 const LOGIN_PATH = '/auth/login';
@@ -598,8 +609,8 @@ async function useCreatedAccount(
     expect(creatorToken, `"${role}" is created by "${creator}": the ${creator} login must pass first`).toBeTruthy();
   }
 
-  // `qa-pw-` marks accounts that tests created, so they can be found on a shared environment.
-  const email = `qa-pw-${role}-${Date.now()}@example.test`;
+  // `unique()` marks the account with `qa-pw-`, so it can be found on a shared environment.
+  const email = `${unique(role)}@example.test`;
   const password = randomUUID();
   const created = await create(new BaseClient(request, creatorToken), email, password);
   expect(created.ok(), `Creating the ${role} account answered ${created.status()}: ${await created.text()}`).toBe(true);
@@ -701,28 +712,51 @@ const LOCATOR_ACTION = {
 /** Every public async method of a page object is a `@step`, so the report reads as user actions. */
 const UNSTEPPED_METHOD = {
   selector:
-    'ClassBody > MethodDefinition[kind="method"][static=false][value.async=true][key.type="Identifier"][decorators.length=0]',
+    'ClassBody > MethodDefinition[kind="method"][static=false][value.async=true][key.type="Identifier"][accessibility!="private"][decorators.length=0]',
   message: 'Put `@step` on a public async page object method (a read polled by `expect.poll` may opt out).',
 };
 
+/** Rules that would otherwise stay warnings: a warning does not stop `npm run lint` or CI. */
+const STRICT = {
+  'playwright/no-wait-for-timeout': 'error',
+  'playwright/no-force-option': 'error',
+  'playwright/no-conditional-in-test': 'error',
+  'playwright/no-conditional-expect': 'error',
+  'playwright/no-networkidle': 'error',
+  'playwright/prefer-web-first-assertions': 'error',
+};
+
 export default defineConfig(
-  { ignores: ['.auth/**', 'node_modules/**', 'playwright-report/**', 'test-results/**', 'src/types/**'] },
+  {
+    ignores: ['.auth/**', 'node_modules/**', 'playwright-report/**', 'test-results/**', 'src/types/**'],
+  },
+  {
+    // The throwaway spec for looking at a page (`e2e-writer`) is not a test and is deleted after use.
+    ignores: ['tests/**/_look.spec.ts'],
+  },
   {
     files: ['**/*.ts'],
-    languageOptions: { parser: tseslint.parser },
+    languageOptions: {
+      parser: tseslint.parser,
+      // Type information, so a call to an async page object method without `await` is an error.
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
     plugins: { '@typescript-eslint': tseslint.plugin },
     linterOptions: { reportUnusedDisableDirectives: 'error' },
+    rules: { '@typescript-eslint/no-floating-promises': 'error' },
   },
   {
     files: ['tests/**/*.ts'],
     ...playwright.configs['flat/recommended'],
     rules: {
       ...playwright.configs['flat/recommended'].rules,
+      ...STRICT,
       // `expect*` page object methods count as assertions.
       'playwright/expect-expect': ['error', { assertFunctionPatterns: ['^expect[A-Z]'] }],
-      'playwright/prefer-web-first-assertions': 'error',
       // Tags come from the `Tag` constants, which this rule cannot read.
       'playwright/valid-test-tags': 'off',
+      // Blank lines are formatting, not behaviour.
+      'playwright/consistent-spacing-between-blocks': 'off',
       '@typescript-eslint/no-restricted-imports': ['error', SPEC_IMPORTS],
     },
   },
@@ -732,12 +766,23 @@ export default defineConfig(
     rules: { 'playwright/expect-expect': 'off' },
   },
   {
-    files: ['tests/**/*.spec.ts'],
+    files: ['tests/e2e/**/*.spec.ts'],
     rules: { 'no-restricted-syntax': ['error', LOCATOR_ACTION] },
   },
   {
-    files: ['src/ui/pages/**/*.ts', 'src/ui/components/**/*.ts'],
-    rules: { 'no-restricted-syntax': ['error', UNSTEPPED_METHOD] },
+    // Page objects get the same Playwright rules (a missing `await`, `waitForTimeout`, `{ force: true }`).
+    files: ['src/ui/**/*.ts'],
+    ...playwright.configs['flat/recommended'],
+    rules: {
+      ...playwright.configs['flat/recommended'].rules,
+      ...STRICT,
+      // A page object is not a test: it holds `expect*` methods and no `test()`.
+      'playwright/expect-expect': 'off',
+      'playwright/no-standalone-expect': 'off',
+      'playwright/no-conditional-in-test': 'off',
+      'playwright/no-conditional-expect': 'off',
+      'no-restricted-syntax': ['error', UNSTEPPED_METHOD],
+    },
   },
 );
 ```
@@ -752,6 +797,8 @@ What the rules catch, in the words to use with a person new to ESLint:
 | no action on a locator in a spec | `.click()` / `.fill()` in a spec: actions belong to page objects |
 | `@` aliases | `../../../src/...` imports |
 | `@step` on public async page object methods | a page object action that would not show in the report |
+| `no-floating-promises` (type-aware) | a call to an async page object method without `await`: the test would end before the step |
+| Playwright rules on `src/ui/` too | the same mistakes inside page objects, where specs cannot see them |
 
 ## GitHub Actions workflow
 
@@ -787,8 +834,8 @@ jobs:
       INPUT_PROJECT: ${{ inputs.project }}
       INPUT_GREP: ${{ inputs.grep }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: lts/*
       - run: npm ci
@@ -800,7 +847,7 @@ jobs:
           [ -n "$INPUT_PROJECT" ] && args+=(--project="$INPUT_PROJECT")
           [ -n "$INPUT_GREP" ] && args+=(--grep "$INPUT_GREP")
           npx playwright test "${args[@]}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report
@@ -809,7 +856,8 @@ jobs:
 ```
 
 Inputs go through `env`, never straight into the shell line; on a push they are empty, so the push
-runs every test. Add `WEB_URL` when the web app has another address. Roles that tests create
+runs every test, while a manual run defaults to `@smoke`. Use the action versions above or newer:
+older majors run on a Node version GitHub has retired and print a warning on every run. Add `WEB_URL` when the web app has another address. Roles that tests create
 themselves need no secret. In a separate repository remove `defaults.run.working-directory` and use
 `path: playwright-report`. If `BASE_URL` is `localhost` or behind a VPN, say in the README that
 hosted CI cannot reach it. Drop the browser install step for an API-only project. Add `schedule`
@@ -903,5 +951,7 @@ Short, for a person who has never run Playwright. Sections in this order:
    variables → Actions → New repository secret), their names, and whether CI can reach the
    environment.
 7. Publishing the project on GitHub (a separate repository): `gh auth login`, then
-   `gh repo create <name> --private --source . --push`; the push starts the CI run.
+   `gh repo create <name> --private --source . --push`; the push starts the CI run. When a role
+   needs a secret: `gh repo create <name> --private --source .`, `gh secret set <NAME>` for each,
+   then `git push -u origin main`.
 8. Next step: call `api-contract-writer` with an endpoint, or `e2e-writer` with a scenario.

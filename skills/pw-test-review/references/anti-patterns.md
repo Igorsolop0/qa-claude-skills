@@ -120,7 +120,9 @@ Walk through the test code and flag the following. Categorize each finding by pr
 ### 13. Hardcoded URLs instead of `baseURL`
 
 - **Why:** breaks environment switching, leaks prod URLs into the suite, and complicates running the same tests against staging/local.
-- **Fix:** set `baseURL` in `playwright.config.ts` and use relative paths in `page.goto('/path')`.
+- **Fix:** read the address from env in one place: `baseURL` in `playwright.config.ts` with relative
+  `page.goto('/path')`, or the project's `webUrl()` when `baseURL` is the API address (the default
+  structure of `pw-project-bootstrap`).
 
 ### 14. Hardcoded test data that collides on rerun
 
@@ -177,6 +179,9 @@ Walk through the test code and flag the following. Categorize each finding by pr
 ### 16. `.spec.ts` vs `.test.ts` inconsistency
 
 - Cosmetic but: pick one convention across the project. The "spec" naming dates back to a defunct "tests as specification" idea.
+- Exception: the default structure uses both on purpose. `tests/**/*.spec.ts` are Playwright specs,
+  `src/utils/*.test.ts` are unit tests of pure functions. Flag only a `*.test.ts` under `tests/` or a
+  `*.spec.ts` under `src/`.
 
 ### 17. Comments explaining `await`
 
@@ -189,7 +194,7 @@ Walk through the test code and flag the following. Categorize each finding by pr
 ### 19. Global test-data file (`testData.ts` / `fixtures.ts` / `data.ts`)
 
 - **Why:** when one file aggregates presets/users/payloads from multiple unrelated flows, every spec imports the union, every change touches the same file, and the test data becomes a god object. Renaming a single preset cascades into specs that should have nothing to do with it.
-- **Fix:** colocate test data with the flow that owns it (`tests/<flow>/<flow>.presets.ts`). Lift only true cross-flow atoms (durations, enums, hard ceilings) into one domain-scoped constants file next to the flows that use them — still not one mega-file.
+- **Fix:** one builder file per topic (`test-data/accounts.ts`, `test-data/tickets.ts`), each owned by the domain that uses it; follow the project's own place when it has one. `tests/` holds specs only. Lift only true cross-domain atoms (durations, enums, hard ceilings) into one domain-scoped constants file — still not one mega-file.
 
 ### 20. Separate `locators/` folder or `*.locators.ts` file
 
@@ -201,8 +206,9 @@ Walk through the test code and flag the following. Categorize each finding by pr
 - **Why:** `async clickLogin() { await this.loginButton.click(); }` adds a name and an import edge but
   no behaviour: the spec could call the locator directly. Many of them make a POM look rich while it
   hides nothing (the deletion test: if inlining the method loses nothing, it should not exist).
-- **Fix:** delete it and use the getter, or make it carry a whole user intent: the steps of one action
-  plus the wait for its outcome (`signInAs(account)`).
+- **Fix:** make it carry a whole user intent: the steps of one action plus the wait for its outcome
+  (`signInAs(account)`). Do not move the click into the spec: a spec acts only through page object
+  methods (#29).
 
 ## Project structure
 
