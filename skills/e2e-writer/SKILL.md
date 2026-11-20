@@ -103,25 +103,13 @@ Tell the user in three lines what will be added, then add it from the templates:
    `npx playwright install --with-deps chromium` before the tests, and `WEB_URL` to its `env` when
    the web app has another address.
 
-Then, in this order, because the fixtures need facts you have not seen yet:
+Then find out, without writing anything for the scenario yet, the facts the fixtures will need:
 
-1. Look at the first page of the scenario (`node scripts/page-snapshot.mjs '<path>'`) and write its
-   page object.
-2. Find out how the browser keeps a session: with the throwaway spec from the templates, sign in
-   or register through the page, and print the cookies and the storage keys. Compare them with what
-   the login or registration endpoint returns.
-3. Write `src/fixtures/app.fixture.ts` from the template and merge it in `src/fixtures/index.ts`.
-   It always has `app`. `account` (with `test-data/accounts.ts`), `<role>App` and `shared<Role>App`,
-   with `createAccount` (how the API makes an account) and `addSession` (how a browser becomes
-   signed in without the login form),
-   come with the first scenario that needs a signed-in user or an existing account; reuse a
-   precondition fixture another skill already wrote (for example a registered account) instead of
-   making a second one.
-4. When `<role>App` exists: with the throwaway spec, open the first page after login as `<role>App`
-   and print it: it must show the signed-in state. Write that page with its `expectOpen()`.
-5. Replace the "Browser" line in `AGENTS.md` (this one line needs no approval: it records what you
-   just set up). The `e2e` project depends on `setup` only when a `shared<Role>App` uses the role
-   saved there.
+1. How the browser keeps a session: with the throwaway spec from the templates, sign in or register
+   through the page with plain locators, and print the cookies and the storage keys. Compare them
+   with what the login or registration endpoint returns. You write `addSession` from this in step 6.
+2. Replace the "Browser" line in `AGENTS.md` with what you set up and found (this one line needs
+   no approval: it records facts, not tests).
 
 A product whose API cannot create accounts and whose session cannot be set from outside: say so,
 and fall back to one login through the login page per role in a setup project (templates, last
@@ -191,12 +179,24 @@ findings from step 4, and what you left out. Write only after a clear yes.
 **This stop is not optional,** even when the user's request already names the test exactly ("write
 a test: an admin creates a ticket and sees it"): the user approves the steps, the outcome you will
 assert, and the data the fixtures create, not just the title. Until that yes, write nothing for the
-scenario: no page object, fixture, builder or spec. Only the setup of step 2 and the throwaway look
-spec may exist before it.
+scenario: no page object, fixture, builder or spec. Only the files listed in step 2, the
+`AGENTS.md` Browser line and the throwaway look spec may exist before it.
 
 ## Step 6 — Write
 
 Read [references/playwright-rules.md](references/playwright-rules.md) first.
+
+First browser test only, before the page objects:
+
+1. Write `src/fixtures/app.fixture.ts` from the template and merge it in `src/fixtures/index.ts`.
+   It always has `app`. `account` (with `test-data/accounts.ts`), `<role>App` and `shared<Role>App`,
+   with `createAccount` (how the API makes an account) and `addSession` (from what step 2 found),
+   come with the first scenario that needs a signed-in user or an existing account. Reuse a
+   precondition fixture another skill already wrote (for example a registered account) instead of
+   making a second one.
+2. When `<role>App` exists: with the throwaway spec, open the first page after login as `<role>App`
+   and print it: it must show the signed-in state.
+3. The `e2e` project depends on `setup` only when a `shared<Role>App` uses the role saved there.
 
 Page objects (templates and a filled example in the reference):
 
