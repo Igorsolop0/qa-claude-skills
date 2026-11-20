@@ -39,7 +39,7 @@ you what this skill cannot know:
 No `CLAUDE.md`: infer these from the fixtures and two existing specs, and say in the report that
 the review assumed them. The writer conventions are in the `api-contract-writer` skill
 (`references/honest-tests.md`, `references/optional-layers.md`); cite them when a finding depends
-on one. Catalog items about envelopes (C2, H2) and forbidden routes (C4) apply only when the
+on one. Catalog items about envelopes (C2, H2), forbidden routes (C4) and traceability (M6) apply only when the
 profile describes such a thing: adapt the names in them to this product.
 
 ## Workflow

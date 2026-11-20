@@ -38,8 +38,9 @@ these rules (cite them as findings only when they cause a real failure mode):
 
 - **Always apply the money-domain priority bumps** from `references/anti-patterns.md`: balances,
   bonuses, and deposits are in scope even if the user doesn't say so.
-- **Mock-stack leaks.** `?mocks=on`, `x-wiremock`, or `PLAYWRIGHT_USE_MOCKS` in a suite that reports
-  to a test-management tool as "live" → High: the run silently tests mock data while reporting live.
+- **Mock-stack leaks.** A switch that turns on the project's mock or stub backend (a query
+  parameter, a mock-server header, an env flag) in a suite that reports as "live" → High: the run
+  silently tests mock data while reporting live.
 - **Session/project routing.** Authenticated-only assertions in a file that the config routes to a
   guest/unauthenticated project → High: it runs without the session and fails or, worse, passes
   against guest chrome.

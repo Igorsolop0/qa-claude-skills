@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://<repo>.dev/the platform/qa/shift-left-review.schema.json",
+  "$id": "https://example.com/schemas/qa-shift-left-review.schema.json",
   "title": "QA shift-left review",
   "type": "object",
   "additionalProperties": false,
@@ -8,7 +8,7 @@
     "ref",
     "source_mode",
     "analyzed_at",
-    "brand_scope",
+    "scope",
     "feature_framing",
     "testing_types",
     "techniques",
@@ -27,13 +27,13 @@
   "properties": {
     "ref": {
       "type": "string",
-      "description": "Issue reference (#2201), OpenSpec change name, or a short label for pasted input."
+      "description": "Issue reference (#123), spec or change document name, or a short label for pasted input."
     },
     "source_mode": {
       "type": "string",
       "enum": [
         "github_issue",
-        "openspec_change",
+        "spec_document",
         "pasted_text"
       ]
     },
@@ -53,13 +53,9 @@
       "type": "string",
       "format": "date-time"
     },
-    "brand_scope": {
+    "scope": {
       "type": "string",
-      "enum": [
-        "client",
-        "brand-b",
-        "cross-brand"
-      ]
+      "description": "The product variant (tenant, locale, platform, customer) the plan covers, or \"all variants\"."
     },
     "parent_ref": {
       "type": [
@@ -106,7 +102,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Access profile ids from gateway/mock/profiles/<brand>/profiles.yaml."
+          "description": "Access profile ids from the project's fixtures, roles, or auth model (for example guest, registered-user, admin)."
         },
         "dependencies": {
           "type": "array",
@@ -425,7 +421,7 @@
             "type": "string",
             "enum": [
               "money",
-              "bonus-correctness",
+              "pricing-correctness",
               "auth",
               "compliance",
               "data-loss",
@@ -502,7 +498,7 @@
               "unit",
               "component",
               "api",
-              "openspec-mock",
+              "mocked-e2e",
               "e2e-live"
             ]
           },
@@ -528,7 +524,7 @@
           },
           "destination": {
             "type": "string",
-            "description": "Concrete path: workspace test file, qa/tests/** spec, or OpenSpec test-case file."
+            "description": "Concrete path: unit or component test file, live spec in the tests dir, or test-case file."
           },
           "expected_evidence": {
             "type": "string"
@@ -571,7 +567,7 @@
                     "unit",
                     "component",
                     "api",
-                    "openspec-mock",
+                    "mocked-e2e",
                     "e2e-live"
                   ]
                 },
@@ -641,7 +637,7 @@
             "component": {
               "type": "integer"
             },
-            "openspec_mock": {
+            "mocked_e2e": {
               "type": "integer"
             }
           }

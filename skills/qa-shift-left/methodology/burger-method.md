@@ -16,10 +16,10 @@ scenario list. The layers are the method; the scenario matrix is only its output
 
 Before designing anything, look for prior knowledge:
 
-- Similar changes already analyzed (`openspec/changes/**`, archived changes, past test plans)
-- Known weak spots in this area (`.agents/retros/**`, open issues)
-- Known flaky or unstable behavior in `qa/tests/**`
-- Reusable builders, Zod schemas, fixtures, helpers, access profiles
+- Similar changes already analyzed (archived change documents, past test plans)
+- Known weak spots in this area (retros, post-mortems, open issues)
+- Known flaky or unstable behavior in the existing test suites
+- Reusable builders, schemas, fixtures, helpers, access profiles
 - Prior bugs that should shape the plan
 
 Output:
@@ -38,16 +38,16 @@ Memory relevant to this change:
 Define the testable behavior in operational terms:
 
 - What changes (the functional delta)
-- Who is affected (access profiles, brands)
+- Who is affected (access profiles, product variants)
 - What the expected behavior is
-- Dependencies (BFF, gateway, CMS, upstream services, feature flags, seed data)
+- Dependencies (backend services, CMS, third-party services, feature flags, seed data)
 - What is still unclear (assumptions or unknowns)
 
 Output:
 
 ```
 Feature summary: ...
-Brand scope: brand-a | brand-b | cross-brand
+Scope: <variant name> | all variants
 Known requirements: ...
 Constraints and dependencies: ...
 Unknowns / assumptions needed: ...
@@ -85,8 +85,8 @@ Output:
 
 - Principles applied: risk-based testing, no exhaustive testing, defect clustering, early testing,
   pesticide paradox, absence-of-errors fallacy
-- Top risks: money loss, bonus or balance correctness, auth and session, licensing and compliance,
-  player-visible breakage on the critical path, data leakage, cross-brand regressions
+- Top risks: money loss, payment or balance correctness, auth and session, legal and compliance,
+  user-visible breakage on the critical path, data leakage, cross-variant regressions
 - Prioritization: what is tested first, what can be deferred
 
 ## 5. Scenario set
@@ -99,13 +99,13 @@ Each scenario carries:
 - Testing type (positive / negative / boundary / edge / exploratory)
 - Technique origin (which technique produced it)
 - Risk it covers
-- Recommended level (unit / component / api / e2e-live / openspec-mock)
+- Recommended level (unit / component / api / mocked-e2e / e2e-live)
 - Priority (must / should / could)
-- Affected access profiles and brand
+- Affected access profiles and variant
 - Expected evidence (assertion, response field, selector, log line)
 
-Keep the matrix focused: typically 5–15 scenarios. The range is a guide, not a cap. In-spec scenarios of an
-OpenSpec change are never merged or dropped to fit it; only scenarios you invent beyond the spec count as a smell.
+Keep the matrix focused: typically 5–15 scenarios. The range is a guide, not a cap. In-spec scenarios of a
+spec document are never merged or dropped to fit it; only scenarios you invent beyond the spec count as a smell.
 
 ## Ambiguity rule
 

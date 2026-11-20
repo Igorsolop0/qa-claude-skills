@@ -68,7 +68,7 @@ Always include "What's good" — never omit it.
 ## Rules
 
 - **Skip empty sections.** No "Medium: none found." — just omit the heading.
-- **Always cite line numbers.** `active-bonus.spec.ts:67`, not "around line 67" or "in the claim test".
+- **Always cite line numbers.** `order-status.spec.ts:67`, not "around line 67" or "in the claim test".
 - **One sentence per "why".** Explain the mechanism — what actually goes wrong at runtime.
   Never write "this is a best practice" or "the docs recommend".
 - **"What's good" is mandatory.** At least 2 bullets. Tells the author what patterns to keep.

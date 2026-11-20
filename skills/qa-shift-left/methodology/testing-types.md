@@ -8,7 +8,7 @@ Layer 2 of the Burger method. Choose deliberately and write down what you exclud
 | --- | --- | --- | --- |
 | What you know | Requirements and observable behavior only | The implementation: branches, data structures, queries | Requirements plus partial internals (schema, contract, DOM structure) |
 | Derived from | Acceptance criteria, specs, API contracts, UI states | Source code and its paths | Contract plus a look at the code |
-| Typical the platform home | `qa/tests/**` live specs, OpenSpec mock cases | `bun test` unit tests next to the code | API contract tests asserting a response schema, component tests against `data-slot` hooks |
+| Typical test home | Live and mocked E2E specs | Unit tests next to the code | API contract tests asserting a response schema, component tests against stable DOM hooks |
 | Coverage question | "Is every required behavior observable and correct?" | "Is every branch and boundary in this function exercised?" | "Does the observable contract match what the code actually produces?" |
 | Blind spot | Untested internal branches, dead code | Wrong requirement implemented perfectly | Inherits both, in smaller doses |
 
@@ -19,8 +19,7 @@ How to use the distinction:
 - **Add white box after reading the diff or the implementation.** It answers a different question:
   which internal paths exist that the requirements never mentioned (error branches, fallbacks,
   retries, cache misses, locale fallbacks, null-object paths).
-- **Grey box is the default for API contract work.** You know the envelope (`DomainApiResponse`,
-  `ProblemDetails`), the status codes, and the schema, without knowing the handler internals.
+- **Grey box is the default for API contract work.** You know the response envelope, the status codes, and the schema, without knowing the handler internals.
 - **Coverage note:** black-box coverage is measured against requirements, white-box coverage against
   code (statement, branch, condition). Never report code coverage as proof of requirement coverage.
 
@@ -32,9 +31,9 @@ Non-functional types worth naming when the change touches them:
 
 | Type | When product work triggers it | Where it usually lands |
 | --- | --- | --- |
-| Performance / load | New upstream call on a hot path, slider with many items, CMS query per request | Out of scope for `qa/`; raise as a risk and route to the platform team |
+| Performance / load | New upstream call on a hot path, slider with many items, CMS query per request | Usually out of scope for the functional suite; raise as a risk and route to whoever owns performance testing |
 | Security | Auth, sessions, tokens, permissions, secret handling, redaction | Unit tests plus a negative API contract test (call without auth) |
-| Compatibility | New viewport band, new locale, a brand-specific route | Component tests per band, plus one `openspec-mock` case; live only if the band is on the critical path, within the `e2e-live` budget |
+| Compatibility | New viewport band, new locale, a variant-specific route | Component tests per band, plus one `mocked-e2e` case; live only if the band is on the critical path, within the `e2e-live` budget |
 | Usability / accessibility | Focus order, keyboard traps, contrast, labels | Component tests for roles and names; visual QA skill for the rest |
 | Reliability | Retry, timeout, degraded upstream, cache miss | Unit tests for the fallback branch, API contract for the error envelope |
 | Localization | Copy, pluralization, currency and date formats, RTL | Unit tests for the formatter, component tests for copy; live only if the screen is on the critical path, within the `e2e-live` budget |

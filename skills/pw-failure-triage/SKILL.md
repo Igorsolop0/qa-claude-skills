@@ -33,11 +33,11 @@ Read `CLAUDE.md` in the test folder before anything else. Take from it, and ask 
 missing (then propose the lines to add at the end):
 
 - **Run command** for one spec and one project, and the env that keeps a rerun out of the test-
-  management report (for example `TESTOMATIO=` or `CURRENTS_RECORD_KEY=`).
+  management report (for example an empty reporter token such as `REPORTER_TOKEN=`).
 - **Backend prefix** the tests call (`/api/`, `/v1/`) and **paths to ignore** (analytics beacons).
 - **Deploy source**: how to find the build a run hit (a CI workflow name, a deploy log, a version
   endpoint).
-- **Test id convention** used in titles (a test-management tag such as `@T1a2b3c4d`, or the title).
+- **Test id convention** used in titles (a test-management tag such as `@C1234`, or the title).
 - **Product code paths** the QA engineer must not change, and where issues are filed.
 
 ## Inputs

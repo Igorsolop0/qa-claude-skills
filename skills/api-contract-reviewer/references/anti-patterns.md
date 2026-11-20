@@ -15,74 +15,77 @@ Work through this list top-down. Capture file path and line number for each find
 expect(response.body).toBeDefined();
 
 // ✅ Fix — status first, then body
-expect(response.status, "failed to read active bonus").toBe(200);
-expect(response.body).toMatchSchema(ActiveBonusSchema);
+expect(response.status, "failed to read the order").toBe(200);
+expect(response.body).toMatchSchema(OrderSchema);
 ```
 
-**Mechanism:** The base client uses `failOnStatusCode: false` and parses any JSON body, including
-4xx/5xx bodies, so body-only assertions pass on the wrong status.
+**Mechanism:** API clients usually send with `failOnStatusCode: false` and parse any JSON body,
+including 4xx/5xx error bodies, so body-only assertions pass on the wrong status.
 
 ---
 
-### C2 — the legacy envelope service call without a `ResponseCode` assertion
+### C2 — Envelope API call without a business-code assertion
 
-**Pattern:** A `/legacy-api/...` response is checked only for HTTP 200 (or only its
-`ResponseObject`).
+Applies when the project profile describes an envelope API: one that wraps every answer in an
+object with its own result code, so a business failure can arrive as HTTP 200.
+
+**Pattern:** A call to such an API is checked only for HTTP 200 (or only for its payload field).
 
 ```typescript
 // ❌ Bad
 expect(response.status).toBe(200);
-expect(response.body?.ResponseObject).toBeDefined();
+expect(response.body?.data).toBeDefined();
 
-// ✅ Fix
+// ✅ Fix — use the project's envelope helper and assert the result code
 expect(response.status).toBe(200);
-const envelope = asDomainApiResponse<LoginResult>(response);
-expect(envelope.ResponseCode, `login failed: ${envelope.Description}`).toBe("Success");
+const envelope = asEnvelope<LoginResult>(response);
+expect(envelope.code, `login failed: ${envelope.message}`).toBe("Success");
 ```
 
-**Mechanism:** the legacy envelope service reports business failures inside a `DomainApiResponse` that can still arrive as
-HTTP 200 (and sometimes as a 4xx with the same envelope), so a status-only check passes on a rejected
-login, claim, or deposit.
+**Mechanism:** The envelope carries business failures inside a 200 response (and sometimes inside a
+4xx with the same shape), so a status-only check passes on a rejected login, payment, or order.
 
 ---
 
 ### C3 — Credentials, tokens, or gate auth in code or reports
 
-**Pattern:** Literal emails with passwords, `gate-auth` values, Bearer tokens, or env values in a
-spec, client, builder, or `testInfo.attach()` without redaction.
+**Pattern:** Literal emails with passwords, gateway auth header values, Bearer tokens, or env values
+in a spec, client, builder, or `testInfo.attach()` without redaction.
 
 ```typescript
 // ❌ Bad
-extraHTTPHeaders: { "gate-auth": "dXNlcjpwYXNz" }
+extraHTTPHeaders: { "x-gateway-auth": "dXNlcjpwYXNz" }
 await test.info().attach("login", { body: response.rawBody });
 
 // ✅ Fix — credentials only via fixtures from env names; redact before attaching
 await test.info().attach("login", { body: redact(response.rawBody), contentType: "application/json" });
 ```
 
-**Mechanism:** Literals end up in git history, and attachments end up in HTML reports and Testomat
-runs that people outside the team can open.
+**Mechanism:** Literals end up in git history, and attachments end up in HTML reports and
+test-management runs that people outside the team can open.
 
 ---
 
-### C4 — Prohibited Backoffice access
+### C4 — Forbidden admin or back-office access
 
-**Pattern:** Any of: an `admin-api.*` host, a `UserId` header, hard-coded BO user ids,
-`BACKOFFICE_API_URL`, a browser BO JWT or cookie reused in API code, or a Backoffice mutation
-pointed at an environment other than dev/qa.
+Applies when the project profile names routes or hosts that tests must not use.
+
+**Pattern:** Any of: a direct admin-API host the profile forbids, an impersonation header (such as a
+user-id header that makes the call act as that admin), hard-coded admin user ids, a browser admin
+session token or cookie reused in API code, or an admin mutation pointed at an environment where
+the profile does not allow it.
 
 ```typescript
 // ❌ Bad
 headers: { UserId: "1" }
-baseURL: "<internal-host>"
+baseURL: "<internal-admin-host>"
 ```
 
-**Mechanism:** These bypass the Management API Gateway authorization model that platform and
-security owners require; a direct call authorizes as an arbitrary admin and can change live
-bonus configuration.
+**Mechanism:** These bypass the authorization model the platform and security owners require: a
+direct call can act as an arbitrary admin and change live configuration.
 
-**Fix:** Route through `MANAGEMENT_API_GATEWAY_URL` with the confirmed auth contract. If no
-contract is recorded in `api-contract-writer/references/auth-patterns.md`, the test must not exist yet.
+**Fix:** Go through the sanctioned gateway with the auth contract the profile records. If no contract
+is recorded, the test must not exist yet: ask who owns that access first.
 
 ---
 
@@ -92,11 +95,11 @@ contract is recorded in `api-contract-writer/references/auth-patterns.md`, the t
 
 ```typescript
 // ❌ Bad
-const bonus = response.body as ActiveBonus;
-expect(bonus.amount).toBeGreaterThan(0);
+const order = response.body as Order;
+expect(order.total).toBeGreaterThan(0);
 
 // ✅ Fix
-expect(response.body).toMatchSchema(ActiveBonusSchema);
+expect(response.body).toMatchSchema(OrderSchema);
 ```
 
 **Mechanism:** Type assertions do not run at runtime; a renamed or missing field becomes `undefined`
@@ -110,7 +113,7 @@ and comparisons like `toBeGreaterThan` or optional chaining can still pass or fa
 
 **Pattern:** A spec file has only happy-path tests.
 
-**Mechanism:** The error contract (status, `ResponseCode`, ProblemDetails `title`) goes unverified, so
+**Mechanism:** The error contract (status, the error code, ProblemDetails `title`) goes unverified, so
 regressions in validation and authorization ship unnoticed. Minimum per endpoint: one auth rejection
 and one validation error.
 
@@ -118,8 +121,8 @@ and one validation error.
 
 ### H2 — Error body read without the envelope helper
 
-**Pattern:** `response.body?.title` or `(response.body as ProblemDetails).title` instead of
-`asProblemDetails(response)`; the legacy envelope service errors read without `asDomainApiResponse(response)`.
+**Pattern:** `response.body?.title` or `(response.body as ProblemDetails).title` instead of the
+project's helper (`asProblemDetails(response)`); envelope errors read without the envelope helper.
 
 **Mechanism:** The helpers throw a clear "expected ProblemDetails, got …" when the body is empty or has
 the other envelope; optional chaining turns that into `undefined` and a misleading mismatch message.
@@ -131,22 +134,22 @@ the other envelope; optional chaining turns that into `undefined` and a misleadi
 **Pattern:** `playwright.request.newContext(...)`, `new ClientApi(...)`, or header objects created
 inside `test()`.
 
-**Mechanism:** It bypasses the fixture that injects `gate-auth`, player tokens, and disposal, so tests
+**Mechanism:** It bypasses the fixture that injects gateway auth, user tokens, and disposal, so tests
 drift in auth setup, leak contexts, and tend to copy credentials into specs.
 
 ---
 
-### H4 — Shared player or entity mutated by a test
+### H4 — Shared account or entity mutated by a test
 
-**Pattern:** A test claims a bonus, changes profile/password, deposits, or edits a Backoffice entity
-using a worker-scoped player (`clientPlayer`) or an entity created in `beforeAll`.
+**Pattern:** A test changes account state (profile, password, balance, entitlements) or edits an
+admin entity using a worker-scoped account (`sharedUser`) or an entity created in `beforeAll`.
 
 ```typescript
-// ❌ Bad — every other test in this worker now sees a player with an active bonus
-test("Player can claim bonus", async ({ clientApi, clientPlayer }) => { … });
+// ❌ Bad — every other test in this worker now sees a user with an applied coupon
+test("User can apply a coupon", async ({ api, sharedUser }) => { … });
 
-// ✅ Fix — mutation gets its own player
-test("Player can claim bonus", async ({ clientApi, freshClientPlayer }) => { … });
+// ✅ Fix — the mutation gets its own account
+test("User can apply a coupon", async ({ api, freshUser }) => { … });
 ```
 
 **Mechanism:** Worker-scoped state is shared by every test in the worker, so a mutation changes the
@@ -156,7 +159,7 @@ preconditions of unrelated tests and makes results depend on execution order.
 
 ### H5 — IDs created in `beforeAll` used across tests
 
-**Pattern:** `let bonusId` assigned in `beforeAll` from a create call and used by several tests.
+**Pattern:** `let orderId` assigned in `beforeAll` from a create call and used by several tests.
 
 **Mechanism:** If creation partially fails, later tests run with `undefined` and fail with misleading
 messages; parallel retries re-run `beforeAll` per worker and create duplicates. Create per test or in a
@@ -166,8 +169,8 @@ fixture with teardown.
 
 ### H6 — Unprefixed or static test data on a shared environment
 
-**Pattern:** Names/emails like `"Test Bonus"` or `test@test.com`, or random values without the `qa-pw-`
-prefix, sent to dev or qa.
+**Pattern:** Names/emails like `"Test Item"` or `test@test.com`, or random values without the suite's
+test-data prefix (for example `qa-`), sent to a shared environment.
 
 **Mechanism:** Static values collide on the second run, and unprefixed leftovers cannot be found or
 told apart from real configuration while there is no automated cleanup.
@@ -189,13 +192,13 @@ editing every call site instead of one Builder default.
 
 ```typescript
 // ❌ Bad
-expect(asProblemDetails(response).title).toContain("bonus");
+expect(asProblemDetails(response).title).toContain("coupon");
 
 // ✅ Fix
-expect(asProblemDetails(response).title).toBe("bonus_not_available");
+expect(asProblemDetails(response).title).toBe("coupon_not_available");
 ```
 
-**Mechanism:** Substring checks pass for a different error (`bonus_expired` contains `bonus`), hiding
+**Mechanism:** Substring checks pass for a different error (`coupon_expired` contains `coupon`), hiding
 a changed rejection reason. Exact match intentionally couples the test to the current contract;
 update it in the same change as a policy change.
 
@@ -206,35 +209,37 @@ update it in the same change as a policy change.
 **Pattern:** A create call inside `test()` with cleanup after assertions (or no cleanup).
 
 **Mechanism:** A failing assertion skips the cleanup, and the leftover changes list/search results for
-later tests. There is no agreed bulk cleanup yet, so use `try/finally` or fixture teardown when the API
-offers a delete, and otherwise make the leftover inert (inactive, prefixed).
+later tests. Use `try/finally` or fixture teardown when the API offers a delete, and otherwise make the
+leftover inert (inactive, prefixed) so a later cleanup can find it.
 
 ---
 
 ### M4 — `test.fixme` / `test.skip` without a tracker reference
 
 **Mechanism:** Silenced tests without a ticket are forgotten and never re-enabled. Do not demand a
-specific prefix: the ticket prefix convention is not decided yet.
+specific ticket format unless the project profile defines one.
 
 ---
 
 ### M5 — Wrong target or environment baked into code
 
-**Pattern:** Absolute URLs, `partnerId` literals other than via config, or environment names inside
-clients/specs.
+**Pattern:** Absolute URLs, tenant or partner id literals other than via config, or environment names
+inside clients/specs.
 
-**Mechanism:** The same suite must run against the configured `CLIENT_API_GATEWAY_URL` /
-`MANAGEMENT_API_GATEWAY_URL`; a literal silently points one test at another environment.
+**Mechanism:** The same suite must run against whatever base URLs the config supplies; a literal
+silently points one test at another environment.
 
 ---
 
 ### M6 — Missing traceability
 
-**Pattern:** A spec that implements an existing Testomat case lacks its `@T` id, or has an invented one;
-a case from an OpenSpec change lacks its `local_id`.
+Applies when the project links tests to cases in a test-management tool or a spec (an id in the
+title, a tag, or an annotation).
 
-**Mechanism:** Without the id, the Testomat reporter creates an unmatched test instead of updating the
-case, so run history and coverage split.
+**Pattern:** A spec that implements an existing case lacks its id, or carries an invented one.
+
+**Mechanism:** Without the id, the reporter creates an unmatched test instead of updating the case,
+so run history and coverage split.
 
 ---
 
@@ -242,7 +247,7 @@ case, so run history and coverage split.
 
 ### L1 — Expensive setup in test scope
 
-**Mechanism:** Registering a player per test when the tests only read multiplies live account creation
+**Mechanism:** Creating an account per test when the tests only read multiplies live account creation
 and run time. Flag only when the setup clearly creates real accounts or entities.
 
 ---

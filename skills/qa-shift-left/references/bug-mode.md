@@ -1,17 +1,17 @@
 # Bug Mode
 
-Applies when the input is a bug: a GitHub issue of type `Bug`, or a defect reported in the session.
+Applies when the input is a bug: an issue of type bug, or a defect reported in the session.
 The feature already exists, so switch from AC-first to codebase-first analysis.
 
 ## 1. Codebase analysis (before AC extraction)
 
 Extract code signals from the report: component or service names, function names, file paths, error
-messages, endpoint paths, status codes, CMS collection or block names, brand and access profile.
+messages, endpoint paths, status codes, content block names, variant and access profile.
 
 Locate the implementation — graph first, then search:
 
 ```bash
-rg -n "<functionName>|<endpoint-path>" apps packages gateway --glob '!**/node_modules/**'
+rg -n "<functionName>|<endpoint-path>" <source dirs> --glob '!**/node_modules/**'
 rg -l "<ComponentName>" --glob '*.test.ts*' --glob '*.spec.ts'
 ```
 
@@ -26,7 +26,7 @@ Record in `feature_framing`:
 
 - `what_changes` — the exact function, component, or handler being modified
 - `dependencies` — what else that code touches
-- Whether the fix is isolated or cross-cutting (several packages, several brands)
+- Whether the fix is isolated or cross-cutting (several packages, several variants)
 
 ## 2. AC extraction for bugs
 
@@ -55,7 +55,7 @@ Reproduces the exact condition; priority `must`; level wherever the defect manif
 Same path, correct expected outcome; priority `must`; usually 1:1 with each AC.
 
 **REGRESSION** — guards adjacent behavior that must not change.
-Same function with other inputs, other callers of the changed code, other access profiles or brands;
+Same function with other inputs, other callers of the changed code, other access profiles or variants;
 priority `should`; sourced from the codebase pass, not from imagination.
 
 ```json
@@ -73,9 +73,9 @@ priority `should`; sourced from the codebase pass, not from imagination.
 - Say explicitly when an existing test must be **changed**, not only when a new one must be added:
   a test that passed while the defect existed encoded the wrong expectation.
 
-## 5. Profiles and brands
+## 5. Profiles and variants
 
-Identify which access profile and brand reproduce the defect. Add a profile-specific regression
+Identify which access profile and variant reproduce the defect. Add a profile-specific regression
 scenario only when the fix can plausibly affect that profile differently. Do not enumerate every
 profile for a defect that is specific to one.
 
