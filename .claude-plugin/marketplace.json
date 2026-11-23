@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Claude Code skills by Ihor Solopii, Senior QA Engineer, for Playwright test automation and test design. One plugin holds every skill.",
-    "version": "0.4.1"
+    "version": "0.4.2"
   },
   "plugins": [
     {
       "name": "qa-skills",
       "source": "./",
       "description": "Every skill in this repository: pw-project-bootstrap, api-contract-writer, e2e-writer, api-contract-reviewer, pw-test-review, pw-failure-triage and qa-shift-left.",
-      "version": "0.4.1",
+      "version": "0.4.2",
       "category": "qa",
       "tags": ["playwright", "testing", "qa", "typescript", "api", "e2e", "page-object", "code-review"]
     }

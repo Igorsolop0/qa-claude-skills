@@ -123,3 +123,15 @@ Short version: transcript / real workflow → extract "nuggets" → run each can
 `SKILL.md`. Failed candidates are kept as drafts, not shipped.
 
 Long version: [`docs/how-i-build-skills.md`](docs/how-i-build-skills.md).
+
+### Behaviour evals
+
+`evals/<case>/` holds behaviour checks for `claude plugin eval` (Claude Code 2.1.269 or later): a
+prompt, a starting project copied in by `scaffold.sh`, and graders. Run them from the repository
+root after changing a skill:
+
+```bash
+claude plugin eval . --scaffold --no-publish --trust-plugin --ablation none
+```
+
+Each case runs a real headless session on your account and costs about as much as one skill run.

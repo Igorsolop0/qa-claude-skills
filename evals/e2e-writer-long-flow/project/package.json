@@ -1,0 +1,30 @@
+{
+  "name": "bugboard-qa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright tests for BugBoard (API and browser)",
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test --project=api-*",
+    "test:e2e": "playwright test --project=e2e",
+    "test:unit": "playwright test --project=unit",
+    "test:smoke": "playwright test --grep @smoke",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "types:api": "node scripts/generate-api-types.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^24.19.2",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "dotenv": "^17.4.2",
+    "eslint": "^10.15.0",
+    "eslint-plugin-playwright": "^2.12.2",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.73.0",
+    "yaml": "^2.9.1"
+  }
+}

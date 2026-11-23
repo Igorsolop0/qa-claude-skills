@@ -124,6 +124,23 @@ From the user's sentence work out, and ask only for what you cannot:
 - **The action:** the few steps a person would take.
 - **The outcome a person would see:** the one or two things on screen that prove it worked.
 
+**A long flow is a ladder of short tests.** When the scenario chains several actions that each end
+in their own visible outcome (sign up, create a project, add a ticket, comment, close it), the user
+has described a manual test case, not one browser test. One action stays one test, even when it
+crosses pages (register and land on the ticket list). Split the long flow into rungs:
+
+1. **First rung:** the first action no spec in `tests/e2e/` covers yet, usually the entry the rest
+   stand on (sign up, sign in).
+2. **Next rungs:** one action each. Its starting state comes from a fixture, not from the rungs
+   before it, so each rung fails on its own action.
+3. **The whole flow, last and optional:** when the order itself is the risk, one test that walks
+   the flow with the page objects the rungs built and a `test.step` per stage.
+
+This round covers the first rung: steps 4 to 9 work on its pages only. Tell the user why in one
+line: "A long test that goes red does not say where it broke; short tests build the pieces the long
+one is made of." The user decides at the stop in step 5: when they still want the whole flow now,
+write it with a `test.step` per stage and its data from fixtures.
+
 ## Step 4 — Look at the real pages
 
 Never write a locator from memory, from the product's source, or from a similar page. For every
@@ -161,7 +178,8 @@ Budget: **one or two browser tests per scenario.** A browser test is slow and br
 reasons than an API test, so it earns its place only for what cannot be checked below the
 screen:
 
-1. The scenario as the user described it, from the first click to the visible outcome.
+1. The scenario as the user described it (for a long flow, its first rung from step 3), from the
+   first click to the visible outcome.
 2. At most one more: the most important way the screen must refuse or differ (a registered email
    shows an error, another role does not see the button).
 
@@ -174,7 +192,9 @@ Show the user and stop:
 |---|---|---|---|
 
 Under it: the fixtures that prepare data, the page objects and methods you will add or extend,
-findings from step 4, and what you left out. Write only after a clear yes.
+findings from step 4, and what you left out. For a long flow, the table holds the first rung only:
+list the next rungs under it, one line each, as later rounds, with the one-line reason from step 3.
+Write only after a clear yes.
 
 **This stop is not optional,** even when the user's request already names the test exactly ("write
 a test: an admin creates a ticket and sees it"): the user approves the steps, the outcome you will
