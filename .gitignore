@@ -27,3 +27,4 @@ Thumbs.db
 # Local notes / scratch (override per-need in repo)
 .scratch/
 scratch.md
+evals/results/

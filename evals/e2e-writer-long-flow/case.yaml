@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: e2e-writer-long-flow
+description: A manual tester asks for one browser test over a long flow; e2e-writer proposes a ladder of short tests.
+expected_outcome: The first proposal is the smallest rung the flow stands on, the rest are listed as next tests, nothing is written.
+tags: [e2e-writer, behaviour]
+runs: 1
+context:
+  scaffold_script: scaffold.sh
+execution:
+  model: sonnet
+  max_turns: 30
+  allowed_tools: [Read, Glob, Grep, Skill]

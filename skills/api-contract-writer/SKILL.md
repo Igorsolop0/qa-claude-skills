@@ -49,6 +49,15 @@ attachments), and when each is worth adding: [references/optional-layers.md](ref
 
 No `AGENTS.md` (or `CLAUDE.md`) or no fixtures: stop and say the project needs `pw-project-bootstrap` first.
 
+**A whole flow or several endpoints in one request** ("cover registration, login, creating and
+closing a ticket"): list the endpoints in the order the flow calls them and start with the first
+one the rest stand on, usually registration or login. One endpoint per round; each later one gets
+its own round, with its starting state from a precondition fixture rather than from the calls
+before it. Tell the user why in one line: "One endpoint at a time: a red test names the endpoint
+that broke, and its fixtures are what the next endpoints stand on." A test that walks the whole
+flow comes last, and only when the order itself is a rule (a ticket cannot close before it is
+assigned).
+
 ## Step 2 — Read the operation
 
 From `src/types/api.d.ts`, `src/types/api-schemas.json` and, for limits on request fields, the
